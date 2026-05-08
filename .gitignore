@@ -1,0 +1,16 @@
+# Environment variables (sensitive data)
+.env
+.env*.local
+
+# Build outputs
+.next/
+out/
+
+# Node modules
+node_modules/
+
+# Vercel
+.vercel/
+
+# Optional: macOS files
+.DS_Store

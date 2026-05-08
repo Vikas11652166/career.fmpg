@@ -1,0 +1,8 @@
+{
+  "watch": ["api", "config", "Controllers", "middleware", "models", "Routes", "services", "utils"],
+  "ignore": ["node_modules", ".git", "logs", "*.log", "**/*.tmp"],
+  "ext": "js,json",
+  "exec": "node",
+  "script": "api/index.js",
+  "delay": 1000
+}

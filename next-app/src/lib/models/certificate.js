@@ -1,0 +1,16 @@
+import mongoose from "mongoose";
+
+const certificateSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  name: { type: String, required: true },
+  recipientEmail: { type: String },
+  domain: { type: String, required: true },
+  jobrole: { type: String, required: true },
+  fromDate: { type: Date, required: true },
+  toDate: { type: Date, required: true },
+  issuedBy: { type: String, default: "FMPG" },
+  issuedOn: { type: Date, default: Date.now }
+});
+
+const Certificate = mongoose.models.Certificate || mongoose.model("Certificate", certificateSchema);
+export default Certificate;
