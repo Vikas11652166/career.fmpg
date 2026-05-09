@@ -93,10 +93,10 @@ const Footer = () => {
                   +91 73218-35093
                 </a>
                 <a 
-                  href="mailto:fmpg974@gmail.com" 
+                  href="mailto:contact@gmail.com" 
                   className="block text-xl font-light hover:text-lime-400 transition-colors duration-300 cursor-pointer"
                 >
-                  <span className="hidden sm:inline">fmpg974@gmail.com</span>
+                  <span className="hidden sm:inline">contact@gmail.com</span>
                   <span className="sm:hidden">Email Us</span>
                 </a>
               </div>

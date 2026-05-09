@@ -77,7 +77,7 @@ const seedDatabase = async () => {
     };
     
     // Always include the main admin
-    const mainAdminEmail = 'vivekkumarprince1@gmail.com';
+    const mainAdminEmail = 'contact@gmail.com';
     usedEmails.add(mainAdminEmail);
     usersData.push({
       name: 'Admin User',

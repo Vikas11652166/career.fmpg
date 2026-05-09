@@ -86,13 +86,21 @@ exports.verifyCertificate = async (req, res) => {
     console.log(`Verify: ${req.params.id}`);
     try {
         const certId = normalizeCertificateLookupId(req.params.id);
+        let certificate;
 
-        if (!mongoose.Types.ObjectId.isValid(certId)) {
-            return res.status(400).json({ message: "Invalid certificate ID" });
+        if (mongoose.Types.ObjectId.isValid(certId)) {
+            certificate = await Certificate.findById(certId).populate("userId", "name email");
+        } else if (certId.length >= 4) {
+            certificate = await Certificate.findOne({
+                $expr: {
+                    $regexMatch: {
+                        input: { $toString: "$_id" },
+                        regex: certId + "$",
+                        options: "i"
+                    }
+                }
+            }).populate("userId", "name email");
         }
-
-        console.log(`Finding: ${certId}`);
-        const certificate = await Certificate.findById(certId).populate("userId", "name email");
 
         if (!certificate) {
             console.log(`Not found: ${certId}`);
@@ -127,11 +135,22 @@ exports.downloadCertificate = async (req, res) => {
     console.log(`Download request for certificate: ${req.params.id}`);
     try {
         const certId = normalizeCertificateLookupId(req.params.id);
-        if (!mongoose.Types.ObjectId.isValid(certId)) {
-            return res.status(400).json({ message: "Invalid certificate ID" });
+        let certificate;
+
+        if (mongoose.Types.ObjectId.isValid(certId)) {
+            certificate = await Certificate.findById(certId);
+        } else if (certId.length >= 4) {
+            certificate = await Certificate.findOne({
+                $expr: {
+                    $regexMatch: {
+                        input: { $toString: "$_id" },
+                        regex: certId + "$",
+                        options: "i"
+                    }
+                }
+            });
         }
 
-        const certificate = await Certificate.findById(certId);
         if (!certificate) {
             console.log(`Certificate with ID ${certId} not found in database`);
             return res.status(404).json({ message: "Certificate not found in database" });
@@ -173,12 +192,21 @@ exports.generateCertificate = async (req, res) => {
         }
 
         const certId = normalizeCertificateLookupId(certificateId);
-        if (!mongoose.Types.ObjectId.isValid(certId)) {
-            return res.status(400).json({ message: "Invalid certificate ID" });
-        }
+        let certificate;
 
-        console.log(`Finding cert`);
-        const certificate = await Certificate.findById(certId);
+        if (mongoose.Types.ObjectId.isValid(certId)) {
+            certificate = await Certificate.findById(certId);
+        } else if (certId.length >= 4) {
+            certificate = await Certificate.findOne({
+                $expr: {
+                    $regexMatch: {
+                        input: { $toString: "$_id" },
+                        regex: certId + "$",
+                        options: "i"
+                    }
+                }
+            });
+        }
 
         if (!certificate) {
             console.log(`Not found`);
@@ -432,7 +460,11 @@ async function generateCertificatePDFBuffer(certificate) {
         toDate,
     } = certificate;
 
-    const verifyBase = (process.env.FRONTEND_URL || 'https://fmpg.vercel.app').replace(/\/+$/, '');
+    let verifyBase = (process.env.FRONTEND_URL || 'https://fmpg.vercel.app').replace(/\/+$/, '');
+    // Ensure localhost uses http to avoid SSL errors during development
+    if (verifyBase.includes('localhost')) {
+        verifyBase = verifyBase.replace('https://', 'http://');
+    }
     const verifyUrl = `${verifyBase}/verify/${_id}`;
 
     const fmt = (d) => d
@@ -542,7 +574,7 @@ async function generateCertificatePDFBuffer(certificate) {
 
     doc.rect(metaX - 12, metaStartY, 2, 50).fill(C.limeDim);
 
-    drawSignatureBlock(doc, W - 310, metaStartY + 4, 'Founder & Director', 'Om Sharma');
+    drawSignatureBlock(doc, W - 310, metaStartY + 4, 'Founder & Director', 'Vivek Kumar');
     drawSignatureBlock(doc, W - 160, metaStartY + 4, 'HR Manager', 'FMPG Team');
 
     doc.font('Helvetica').fontSize(7).fillColor(C.gray2);
@@ -569,11 +601,22 @@ exports.sendCertificateEmail = async (req, res) => {
         const { recipientEmail, subject, message } = req.body;
 
         const certId = normalizeCertificateLookupId(id);
-        if (!mongoose.Types.ObjectId.isValid(certId)) {
-            return res.status(400).json({ message: "Invalid certificate ID" });
+        let certificate;
+
+        if (mongoose.Types.ObjectId.isValid(certId)) {
+            certificate = await Certificate.findById(certId);
+        } else if (certId.length >= 4) {
+            certificate = await Certificate.findOne({
+                $expr: {
+                    $regexMatch: {
+                        input: { $toString: "$_id" },
+                        regex: certId + "$",
+                        options: "i"
+                    }
+                }
+            });
         }
 
-        const certificate = await Certificate.findById(certId);
         if (!certificate) {
             console.log(`Cert not found: ${certId}`);
             return res.status(404).json({ message: "Certificate not found" });

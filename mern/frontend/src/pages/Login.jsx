@@ -33,14 +33,14 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const response = await login(formData);
-      
+
       console.log('Login response:', response);
       console.log('User role:', response.user?.role);
       console.log('From path:', from);
-      
+
       // Check if user is admin and redirect accordingly
       if (response.user && response.user.role === 'admin') {
         console.log('Navigating to dashboard for admin');
@@ -49,29 +49,29 @@ const Login = () => {
         // For regular users, navigate to home page or the intended page
         // But avoid redirecting to admin-only routes
         let targetPath = from;
-        
+
         // List of admin-only routes
         const adminOnlyRoutes = [
           '/dashboard',
-          '/certificates', 
+          '/certificates',
           '/offer-letters',
           '/jobs/create',
           '/admin/'
         ];
-        
+
         // Check if the target path is admin-only
-        const isAdminRoute = adminOnlyRoutes.some(route => 
+        const isAdminRoute = adminOnlyRoutes.some(route =>
           from === route || from.startsWith(route) || from.startsWith('/jobs/edit/')
         );
-        
+
         if (isAdminRoute) {
           targetPath = '/';
         }
-        
+
         console.log('Navigating to:', targetPath);
         navigate(targetPath, { replace: true });
       }
-      
+
     } catch (err) {
       const errorData = err.response?.data;
       if (errorData?.requiresVerification) {
@@ -90,9 +90,9 @@ const Login = () => {
       {loading && <Loader fullPage={true} text="Authenticating..." />}
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <Link to="/" className="inline-block mb-6">
+          {/* <Link to="/" className="inline-block mb-6">
             <img src="/logo.png" alt="FMPG Logo" className="h-16 mx-auto" />
-          </Link>
+          </Link> */}
           <h2 className="text-3xl font-extrabold text-white">Sign in to your account</h2>
           <p className="mt-2 text-sm text-gray-400">
             Or{' '}
@@ -101,9 +101,9 @@ const Login = () => {
             </Link>
           </p>
         </div>
-        
+
         <div className="bg-gray-900 rounded-lg shadow-xl p-8 border border-gray-800">
-          
+
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">Email</label>
@@ -118,7 +118,7 @@ const Login = () => {
                 placeholder="your@email.com"
               />
             </div>
-            
+
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label htmlFor="password" className="block text-sm font-medium text-gray-300">Password</label>
@@ -137,10 +137,10 @@ const Login = () => {
                 placeholder="••••••••"
               />
             </div>
-            
+
             <div>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-black bg-lime-400 hover:bg-lime-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lime-400 transition-colors duration-300 disabled:opacity-70"
                 disabled={loading}
               >

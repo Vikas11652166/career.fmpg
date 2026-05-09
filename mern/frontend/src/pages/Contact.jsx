@@ -62,7 +62,7 @@ const Contact = () => {
             <div className="flex flex-col md:flex-row md:justify-between md:items-center border-b border-gray-800 pb-6">
               <h2 className="text-lg font-medium mb-2 md:mb-0 text-lime-400">CONTACT</h2>
               <div className="text-gray-300 text-right md:text-left">
-                <p>fmpg974@gmail.com</p>
+                <p>contact@gmail.com</p>
                 <p>+91 73218-35093</p>
               </div>
             </div>

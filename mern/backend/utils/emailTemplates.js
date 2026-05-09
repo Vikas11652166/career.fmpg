@@ -129,7 +129,7 @@ const baseTemplate = (content, title = 'FMPG Update') => `
       <p>&copy; ${new Date().getFullYear()} FMPG Group. All rights reserved.</p>
       <p>Human Resources Department • FMPG Headquarters</p>
       <p style="margin-top: 10px;">
-        <a href="mailto:hr@fmpg.com" style="color: #a3c614; text-decoration: none;">Contact Support</a>
+        <a href="mailto:contact@gmail.com" style="color: #a3c614; text-decoration: none;">Contact Support</a>
       </p>
     </div>
   </div>

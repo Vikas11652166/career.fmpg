@@ -65,7 +65,7 @@ exports.issueOfferLetter = async (req, res) => {
         const parsedStartDate = new Date(startDate);
         const parsedEndDate = endDate ? new Date(endDate) : null;
         const parsedValidUntil = new Date(validUntil);
-        
+
         const resolvedDuration = (typeof duration === 'string' && duration.trim())
             ? duration.trim()
             : (calculateDurationText(parsedStartDate, parsedEndDate) || 'Until project completion or 3 months (whichever is longer)');
@@ -135,12 +135,21 @@ exports.getOfferLetterById = async (req, res) => {
     console.log(`Get offer letter: ${req.params.id}`);
     try {
         const offerLetterId = normalizeOfferLetterLookupId(req.params.id);
-        if (!mongoose.Types.ObjectId.isValid(offerLetterId)) {
-            return res.status(400).json({ message: "Invalid offer letter ID" });
-        }
+        let offerLetter;
 
-        console.log(`Finding: ${offerLetterId}`);
-        const offerLetter = await OfferLetter.findById(offerLetterId).populate("userId", "name email");
+        if (mongoose.Types.ObjectId.isValid(offerLetterId)) {
+            offerLetter = await OfferLetter.findById(offerLetterId).populate("userId", "name email");
+        } else if (offerLetterId.length >= 4) {
+            offerLetter = await OfferLetter.findOne({
+                $expr: {
+                    $regexMatch: {
+                        input: { $toString: "$_id" },
+                        regex: offerLetterId + "$",
+                        options: "i"
+                    }
+                }
+            }).populate("userId", "name email");
+        }
 
         if (!offerLetter) {
             console.log(`Not found: ${offerLetterId}`);
@@ -159,13 +168,21 @@ exports.verifyOfferLetter = async (req, res) => {
     console.log(`Verify Offer: ${req.params.id}`);
     try {
         const offerLetterId = normalizeOfferLetterLookupId(req.params.id);
+        let offerLetter;
 
-        if (!mongoose.Types.ObjectId.isValid(offerLetterId)) {
-            return res.status(400).json({ message: "Invalid offer letter ID" });
+        if (mongoose.Types.ObjectId.isValid(offerLetterId)) {
+            offerLetter = await OfferLetter.findById(offerLetterId).populate("userId", "name email");
+        } else if (offerLetterId.length >= 4) {
+            offerLetter = await OfferLetter.findOne({
+                $expr: {
+                    $regexMatch: {
+                        input: { $toString: "$_id" },
+                        regex: offerLetterId + "$",
+                        options: "i"
+                    }
+                }
+            }).populate("userId", "name email");
         }
-
-        console.log(`Finding: ${offerLetterId}`);
-        const offerLetter = await OfferLetter.findById(offerLetterId).populate("userId", "name email");
 
         if (!offerLetter) {
             console.log(`Not found: ${offerLetterId}`);
@@ -189,13 +206,30 @@ exports.updateOfferLetterStatus = async (req, res) => {
         const { status } = req.body;
         const offerLetterId = normalizeOfferLetterLookupId(req.params.id);
 
-        if (!mongoose.Types.ObjectId.isValid(offerLetterId)) {
-            return res.status(400).json({ message: "Invalid offer letter ID" });
-        }
-
         if (!['Pending', 'Accepted', 'Rejected'].includes(status)) {
             return res.status(400).json({ message: "Invalid status" });
         }
+
+        let oldLetter;
+        if (mongoose.Types.ObjectId.isValid(offerLetterId)) {
+            oldLetter = await OfferLetter.findById(offerLetterId);
+        } else if (offerLetterId.length >= 4) {
+            oldLetter = await OfferLetter.findOne({
+                $expr: {
+                    $regexMatch: {
+                        input: { $toString: "$_id" },
+                        regex: offerLetterId + "$",
+                        options: "i"
+                    }
+                }
+            });
+        }
+
+        if (!oldLetter) {
+            return res.status(404).json({ message: "Offer letter not found" });
+        }
+        
+        const effectiveId = oldLetter._id;
 
         const updateData = { status };
         if (status === 'Accepted') {
@@ -211,9 +245,8 @@ exports.updateOfferLetterStatus = async (req, res) => {
             updateData.rejectedAt = undefined;
         }
 
-        const oldLetter = await OfferLetter.findById(offerLetterId);
         const offerLetter = await OfferLetter.findByIdAndUpdate(
-            offerLetterId,
+            effectiveId,
             updateData,
             { new: true }
         );
@@ -377,12 +410,12 @@ exports.extendOfferLetter = async (req, res) => {
                 changes: { extensionHistory: true }
             });
         } catch (e) { }
-        
+
         // Send extension email notification
         try {
             const acceptanceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/offer/accept/job/${updatedOfferLetter._id}`;
             const pdfBuffer = await generateOfferLetterPDFInMemory(updatedOfferLetter);
-            
+
             const mailOptions = {
                 from: process.env.EMAIL_USER,
                 to: updatedOfferLetter.email,
@@ -395,7 +428,7 @@ exports.extendOfferLetter = async (req, res) => {
                     updatedOfferLetter.validUntil,
                     {
                         name: updatedOfferLetter.hrContactName || 'HR Team',
-                        email: updatedOfferLetter.hrContactEmail || 'hr@fmpg.com',
+                        email: updatedOfferLetter.hrContactEmail || 'contact@gmail.com',
                         phone: updatedOfferLetter.hrContactPhone || '1234567890'
                     }
                 ),
@@ -428,11 +461,21 @@ exports.downloadOfferLetter = async (req, res) => {
     console.log(`Download request for offer letter: ${req.params.id}`);
     try {
         const offerLetterId = normalizeOfferLetterLookupId(req.params.id);
-        if (!mongoose.Types.ObjectId.isValid(offerLetterId)) {
-            return res.status(400).json({ message: "Invalid offer letter ID" });
-        }
+        let offerLetter;
 
-        const offerLetter = await OfferLetter.findById(offerLetterId);
+        if (mongoose.Types.ObjectId.isValid(offerLetterId)) {
+            offerLetter = await OfferLetter.findById(offerLetterId);
+        } else if (offerLetterId.length >= 4) {
+            offerLetter = await OfferLetter.findOne({
+                $expr: {
+                    $regexMatch: {
+                        input: { $toString: "$_id" },
+                        regex: offerLetterId + "$",
+                        options: "i"
+                    }
+                }
+            });
+        }
 
         if (!offerLetter) {
             console.log(`Offer letter not found: ${offerLetterId}`);
@@ -522,7 +565,7 @@ exports.sendOfferLetterEmail = async (req, res) => {
             from: process.env.EMAIL_USER,
             to: emailRecipient,
             replyTo: process.env.REPLY_TO_EMAIL || process.env.EMAIL_USER,
-            subject: isExtended 
+            subject: isExtended
                 ? `Offer Validity Extended - ${offerLetter.position} at ${offerLetter.companyName || 'FMPG'}`
                 : (isInternship
                     ? `Internship Offer - ${offerLetter.position} at ${offerLetter.companyName || 'FMPG'}`
@@ -534,7 +577,7 @@ exports.sendOfferLetterEmail = async (req, res) => {
                 offerLetter.validUntil,
                 {
                     name: offerLetter.hrContactName || 'HR Team',
-                    email: offerLetter.hrContactEmail || 'hr@fmpg.com',
+                    email: offerLetter.hrContactEmail || 'contact@gmail.com',
                     phone: offerLetter.hrContactPhone || '1234567890'
                 }
             ),
@@ -698,21 +741,21 @@ function getHrSignatoryName(offerLetter) {
 
 // Colour palette — light theme matching fmpg.in
 const C = {
-    white:      '#ffffff',
-    bg:         '#fafafa',
-    bgAccent:   '#f4fac0',   // lime tint panels
-    lime:       '#c8e600',   // primary brand lime
-    limeDark:   '#8aad00',   // darker lime for text/accents
+    white: '#ffffff',
+    bg: '#fafafa',
+    bgAccent: '#f4fac0',   // lime tint panels
+    lime: '#c8e600',   // primary brand lime
+    limeDark: '#8aad00',   // darker lime for text/accents
     limeBorder: '#daf04a',   // lighter lime border
-    limeDeep:   '#4a6800',   // deep lime for text on lime bg
-    black:      '#111111',
-    dark:       '#1a1a1a',
-    mid:        '#444444',
-    muted:      '#777777',
-    subtle:     '#aaaaaa',
-    border:     '#ebebeb',
-    border2:    '#dddddd',
-    rowBg:      '#f9fdf0',   // tinted position card bg
+    limeDeep: '#4a6800',   // deep lime for text on lime bg
+    black: '#111111',
+    dark: '#1a1a1a',
+    mid: '#444444',
+    muted: '#777777',
+    subtle: '#aaaaaa',
+    border: '#ebebeb',
+    border2: '#dddddd',
+    rowBg: '#f9fdf0',   // tinted position card bg
 };
 
 const W = 595.28;   // A4 width  (pt)
@@ -743,7 +786,7 @@ function strokeRR(doc, x, y, w, h, r, stroke, lw = 0.5) {
 
 function pill(doc, x, y, w, h, fill, strokeColor) {
     const r = h / 2;
-    if (fill)        fillRR(doc, x, y, w, h, r, fill);
+    if (fill) fillRR(doc, x, y, w, h, r, fill);
     if (strokeColor) strokeRR(doc, x, y, w, h, r, strokeColor, 0.75);
 }
 
@@ -765,9 +808,9 @@ function checkmark(doc, cx, cy, size) {
     doc.save();
     doc.lineWidth(1.8).strokeColor(C.dark).lineCap('round').lineJoin('round');
     doc.moveTo(cx - size * 0.38, cy)
-       .lineTo(cx - size * 0.05, cy + size * 0.32)
-       .lineTo(cx + size * 0.38, cy - size * 0.28)
-       .stroke();
+        .lineTo(cx - size * 0.05, cy + size * 0.32)
+        .lineTo(cx + size * 0.38, cy - size * 0.28)
+        .stroke();
     doc.restore();
 }
 
@@ -810,8 +853,12 @@ function drawQR(doc, url, qrX, qrY, qrSize) {
 async function generateOfferLetterPDFInMemory(offerLetter) {
     console.log(`Generating light-theme offer letter PDF for: ${offerLetter.candidateName}`);
 
-    const verifyBase = (process.env.FRONTEND_URL || 'https://careers.fmpg.in').replace(/\/+$/, '');
-    const verifyUrl  = `${verifyBase}/verify-offer/${offerLetter._id}`;
+    let verifyBase = (process.env.FRONTEND_URL || 'https://careers.fmpg.in').replace(/\/+$/, '');
+    // Ensure localhost uses http to avoid SSL errors during development
+    if (verifyBase.includes('localhost')) {
+        verifyBase = verifyBase.replace('https://', 'http://');
+    }
+    const verifyUrl = `${verifyBase}/verify-offer/${offerLetter._id}`;
 
     const fmt = (d) => d
         ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
@@ -829,15 +876,15 @@ async function generateOfferLetterPDFInMemory(offerLetter) {
         : `Rs.${formatCurrencyValue(offerLetter.salary)}`;
     const payoutSuffix = (isInternship && offerLetter.payoutFrequency) ? ` (${offerLetter.payoutFrequency})` : '';
 
-    const offerTypeLabel = offerLetter.offerType || (isInternship ? 'Internship' : 'Full-time');
+    const offerTypeLabel = isInternship ? 'Internship' : (offerLetter.offerType || 'Job');
 
     const doc = new PDFDocument({
         size: 'A4',
         margins: { top: 0, bottom: 0, left: 0, right: 0 },
         autoFirstPage: false,
         info: {
-            Title:   `Offer Letter — ${offerLetter.candidateName}`,
-            Author:  'FMPG',
+            Title: `Offer Letter — ${offerLetter.candidateName}`,
+            Author: 'FMPG',
             Subject: 'Employment Offer Letter',
         }
     });
@@ -870,6 +917,9 @@ async function generateOfferLetterPDFInMemory(offerLetter) {
         const logoPath = path.join(__dirname, '..', 'assets', 'logo_dryukr.png');
         if (fs.existsSync(logoPath)) {
             doc.image(logoPath, logoX, logoY, { fit: [logoW, logoH], align: 'left', valign: 'center' });
+            // Add FMPG text after logo
+            doc.font('Helvetica-Bold').fontSize(22).fillColor(C.dark);
+            doc.text('FMPG', logoX + 50, logoY + 11, { lineBreak: false });
         } else {
             // Fallback: lime square + FMPG text
             fillRR(doc, logoX, logoY + 6, 28, 28, 6, C.lime);
@@ -908,78 +958,78 @@ async function generateOfferLetterPDFInMemory(offerLetter) {
     y += tagH + 8;
 
     // Headline
-    const h1 = isExtended ? 'Your Offer Has Been' : "You're Hired.";
+    const h1 = isExtended ? 'Your Offer Has Been' : "Official Offer.";
     const h2 = isExtended ? 'Extended.' : 'Welcome to FMPG.';
-    doc.font('Helvetica-Bold').fontSize(22).fillColor(C.black);
+    doc.font('Helvetica-Bold').fontSize(26).fillColor(C.black);
     doc.text(h1, PAD, y, { lineBreak: false });
-    y += 26;
-    doc.font('Helvetica-Bold').fontSize(22).fillColor(C.limeDark);
+    y += 30;
+    doc.font('Helvetica-Bold').fontSize(26).fillColor(C.limeDark);
     doc.text(h2, PAD, y, { lineBreak: false });
-    y += 28;
+    y += 32;
 
     // Lime underline accent
     doc.rect(PAD, y, 36, 3).fill(C.lime);
-    y += 10;
+    y += 20;
 
     // Greeting
-    doc.font('Helvetica-Bold').fontSize(10).fillColor(C.dark);
+    doc.font('Helvetica-Bold').fontSize(12).fillColor(C.dark);
     doc.text(`Dear ${offerLetter.candidateName},`, PAD, y, { lineBreak: false });
-    y += 13;
+    y += 18;
 
     const introText = isExtended
         ? `We are pleased to inform you that the validity of your offer to join FMPG has been extended. We remain excited about your potential contribution and look forward to welcoming you on board.`
         : `We are delighted to extend this formal offer of appointment to join the FMPG family. Your skills and background impressed our team, and we believe you will be a valuable addition to our growing organization.`;
 
-    doc.font('Helvetica').fontSize(8.5).fillColor(C.muted).lineGap(1);
+    doc.font('Helvetica').fontSize(10.5).fillColor(C.muted).lineGap(3);
     doc.text(introText, PAD, y, { width: W - PAD * 2 });
-    y += 34;
+    y += 45;
 
     // ── POSITION CARD ────────────────────────────────────────
-    const cardH = 50;
+    const cardH = 65;
     fillRR(doc, PAD, y, W - PAD * 2, cardH, 8, C.rowBg);
     doc.rect(PAD, y, 4, cardH).fill(C.lime);
     strokeRR(doc, PAD, y, W - PAD * 2, cardH, 8, C.limeBorder, 0.75);
 
-    // Type badge (dynamic: Internship / Full-time / Contract / Part-time)
-    doc.font('Helvetica-Bold').fontSize(7.5);
+    // Tag badge
+    doc.font('Helvetica-Bold').fontSize(9);
     const bTW = doc.widthOfString(offerTypeLabel.toUpperCase());
-    const badgeW = bTW + 20;
+    const badgeW = bTW + 24;
     const badgeX = W - PAD - badgeW - 14;
-    const badgeY = y + (cardH - 18) / 2;
-    pill(doc, badgeX, badgeY, badgeW, 18, C.bgAccent, C.limeBorder);
-    doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C.limeDeep);
-    doc.text(offerTypeLabel.toUpperCase(), badgeX + 10, badgeY + 5, { lineBreak: false });
+    const badgeY = y + (cardH - 22) / 2;
+    pill(doc, badgeX, badgeY, badgeW, 22, C.bgAccent, C.limeBorder);
+    doc.font('Helvetica-Bold').fontSize(9).fillColor(C.limeDeep);
+    doc.text(offerTypeLabel.toUpperCase(), badgeX + 12, badgeY + 6.5, { lineBreak: false });
 
     // Position text (truncate width to avoid overlapping badge)
     const posTextMaxW = badgeX - PAD - 26;
-    doc.font('Helvetica').fontSize(7).fillColor(C.subtle);
-    doc.text('POSITION OFFERED', PAD + 16, y + 9, { lineBreak: false, characterSpacing: 0.8 });
-    doc.font('Helvetica-Bold').fontSize(13).fillColor(C.black);
-    doc.text(offerLetter.position.toUpperCase(), PAD + 16, y + 19, { lineBreak: false, width: posTextMaxW, ellipsis: true });
+    doc.font('Helvetica').fontSize(8.5).fillColor(C.subtle);
+    doc.text('POSITION OFFERED', PAD + 16, y + 11, { lineBreak: false, characterSpacing: 0.8 });
+    doc.font('Helvetica-Bold').fontSize(15).fillColor(C.black);
+    doc.text(offerLetter.position.toUpperCase(), PAD + 16, y + 24, { lineBreak: false, width: posTextMaxW, ellipsis: true });
     if (offerLetter.department) {
-        doc.font('Helvetica').fontSize(8).fillColor(C.subtle);
-        doc.text(offerLetter.department, PAD + 16, y + 36, { lineBreak: false, width: posTextMaxW, ellipsis: true });
+        doc.font('Helvetica').fontSize(10).fillColor(C.subtle);
+        doc.text(offerLetter.department, PAD + 16, y + 44, { lineBreak: false, width: posTextMaxW, ellipsis: true });
     }
 
-    y += cardH + 14;
+    y += cardH + 20;
 
     // ── DETAILS GRID ─────────────────────────────────────────
     sectionLabel(doc, 'Offer Details', PAD, y, W - PAD * 2);
     y += 13;
 
     const details = [
-        ['Joining Date', fmt(offerLetter.startDate),                    false],
-        ['Duration',     getOfferDurationText(offerLetter),             false],
-        [salaryLabel,    salaryValue + payoutSuffix,                    true],
-        ['Work Type',    offerLetter.workType || 'On-site',             false],
-        ['Location',     offerLetter.joiningLocation || '—',           false],
-        ['Reporting To', offerLetter.reportingManager || 'FMPG Team',  false],
+        ['Joining Date', fmt(offerLetter.startDate), false],
+        ['Duration', getOfferDurationText(offerLetter), false],
+        [salaryLabel, salaryValue + payoutSuffix, true],
+        ['Work Type', offerLetter.workType || 'On-site', false],
+        ['Location', offerLetter.joiningLocation || '—', false],
+        ['Reporting To', offerLetter.reportingManager || 'FMPG Team', false],
     ];
 
     const gridW = W - PAD * 2;
     const cellW = gridW / 3;
-    const cellH = 34;
-    const rows  = Math.ceil(details.length / 3);
+    const cellH = 42;
+    const rows = Math.ceil(details.length / 3);
     const gridH = rows * cellH;
 
     strokeRR(doc, PAD, y, gridW, gridH, 6, C.border, 0.5);
@@ -989,9 +1039,13 @@ async function generateOfferLetterPDFInMemory(offerLetter) {
     details.forEach(([label, value, accent], i) => {
         const col = i % 3;
         const row = Math.floor(i / 3);
-        detailCell(doc, label, value, PAD + col * cellW + 10, y + row * cellH + 7, cellW, accent);
+        // Custom detail cell call with larger fonts
+        doc.font('Helvetica').fontSize(8.5).fillColor(C.subtle);
+        doc.text(label.toUpperCase(), PAD + col * cellW + 10, y + row * cellH + 8, { lineBreak: false, characterSpacing: 0.7 });
+        doc.font('Helvetica-Bold').fontSize(12).fillColor(accent ? C.limeDark : C.dark);
+        doc.text(value, PAD + col * cellW + 10, y + row * cellH + 22, { lineBreak: false, width: cellW - 15 });
     });
-    y += gridH + 14;
+    y += gridH + 25;
 
     // ── TERMS ────────────────────────────────────────────────
     sectionLabel(doc, 'Terms & Expectations', PAD, y, W - PAD * 2);
@@ -999,51 +1053,51 @@ async function generateOfferLetterPDFInMemory(offerLetter) {
 
     const terms = [
         ['Confidentiality', 'Maintain strict confidentiality of all company data and trade secrets during and after your tenure.'],
-        ['Code Ownership',  'All work produced during your tenure remains the exclusive intellectual property of FMPG.'],
+        ['Code Ownership', 'All work produced during your tenure remains the exclusive intellectual property of FMPG.'],
         ['Professionalism', 'Adhere to our code of conduct and meet agreed performance standards throughout your role.'],
-        ['Acceptance',      'This offer is contingent upon successful background verification and validation of credentials.'],
+        ['Acceptance', 'This offer is contingent upon successful background verification and validation of credentials.'],
     ];
 
-    const termsH = terms.length * 17 + 14;
+    const termsH = terms.length * 18 + 14;
     fillRR(doc, PAD, y, W - PAD * 2, termsH, 6, C.bg);
     strokeRR(doc, PAD, y, W - PAD * 2, termsH, 6, C.border, 0.5);
 
     let ty = y + 10;
     terms.forEach(([title, body]) => {
         doc.circle(PAD + 13, ty + 4.5, 2.5).fill(C.lime);
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.mid);
+        doc.font('Helvetica-Bold').fontSize(9).fillColor(C.mid);
         doc.text(`${title}: `, PAD + 21, ty, { lineBreak: false });
         const tw = doc.widthOfString(`${title}: `);
-        doc.font('Helvetica').fontSize(8.5).fillColor(C.muted);
-        doc.text(body, PAD + 21 + tw, ty, { lineBreak: false, width: W - PAD * 2 - 32 - tw });
-        ty += 17;
+        doc.font('Helvetica').fontSize(9).fillColor(C.muted);
+        doc.text(body, PAD + 21 + tw, ty, { lineBreak: false, width: W - PAD * 2 - 32 - tw, ellipsis: true });
+        ty += 18;
     });
-    y += termsH + 18;
+    y += termsH + 25;
 
     // ── ACCEPTANCE BAR ───────────────────────────────────────
-    const acceptH = 50;
+    const acceptH = 65;
     fillRR(doc, PAD, y, W - PAD * 2, acceptH, 8, C.bgAccent);
     strokeRR(doc, PAD, y, W - PAD * 2, acceptH, 8, C.limeBorder, 0.75);
 
-    const iconS = 30, iconX = PAD + 12, iconY = y + (acceptH - iconS) / 2;
+    const iconS = 36, iconX = PAD + 12, iconY = y + (acceptH - iconS) / 2;
     fillRR(doc, iconX, iconY, iconS, iconS, 7, C.lime);
-    checkmark(doc, iconX + iconS / 2, iconY + iconS / 2, 7);
+    checkmark(doc, iconX + iconS / 2, iconY + iconS / 2, 8);
 
-    const atx = iconX + iconS + 12;
-    doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C.limeDeep);
-    doc.text('HOW TO ACCEPT', atx, y + 11, { lineBreak: false, characterSpacing: 0.9 });
-    doc.font('Helvetica').fontSize(8.5).fillColor(C.muted);
-    doc.text('Confirm via the FMPG portal or reply to this offer email with:', atx, y + 22, { lineBreak: false });
-    doc.font('Helvetica').fontSize(8.5).fillColor(C.mid);
-    doc.text('"I accept the offer and agree to the terms and conditions."', atx, y + 34, { lineBreak: false });
-    y += acceptH + 20;
+    const atx = iconX + iconS + 14;
+    doc.font('Helvetica-Bold').fontSize(9).fillColor(C.limeDeep);
+    doc.text('HOW TO ACCEPT', atx, y + 12, { lineBreak: false, characterSpacing: 0.9 });
+    doc.font('Helvetica').fontSize(10).fillColor(C.muted);
+    doc.text('Confirm via the FMPG portal or reply to this offer email with:', atx, y + 26, { lineBreak: false });
+    doc.font('Helvetica').fontSize(10).fillColor(C.mid);
+    doc.text('"I accept the offer and agree to the terms and conditions."', atx, y + 42, { lineBreak: false });
+    y += acceptH + 35;
 
     // ── FOOTER SEPARATOR ────────────────────────────────────
     doc.rect(PAD, y, W - PAD * 2, 0.5).fill(C.border);
-    y += 16;
+    y += 25;
 
     // ── SIGNATURES + QR ─────────────────────────────────────
-    const qrSize = 56;
+    const qrSize = 60;
 
     drawQR(doc, verifyUrl, W / 2 - qrSize / 2, y, qrSize);
     doc.font('Helvetica').fontSize(6.5).fillColor(C.subtle);
@@ -1051,21 +1105,21 @@ async function generateOfferLetterPDFInMemory(offerLetter) {
     doc.text('SCAN TO VERIFY', W / 2 - qrLW / 2, y + qrSize + 5, { lineBreak: false, characterSpacing: 0.7 });
 
     // Left — Founder
-    doc.font('Helvetica-Bold').fontSize(11).fillColor(C.black);
-    doc.text('Om Sharma', PAD, y + 12, { lineBreak: false });
-    doc.rect(PAD, y + 28, 110, 0.75).fill(C.border2);
-    doc.font('Helvetica').fontSize(7.5).fillColor(C.subtle);
-    doc.text('FOUNDER & DIRECTOR', PAD, y + 34, { lineBreak: false, characterSpacing: 0.5 });
+    doc.font('Helvetica-Bold').fontSize(13).fillColor(C.black);
+    doc.text('Vivek Kumar', PAD, y + 14, { lineBreak: false });
+    doc.rect(PAD, y + 32, 120, 0.75).fill(C.border2);
+    doc.font('Helvetica').fontSize(9).fillColor(C.subtle);
+    doc.text('FOUNDER & DIRECTOR', PAD, y + 40, { lineBreak: false, characterSpacing: 0.5 });
 
     // Right — HR
     const hrName = getHrSignatoryName(offerLetter);
-    const hrNW = doc.font('Helvetica-Bold').fontSize(11).widthOfString(hrName);
-    doc.font('Helvetica-Bold').fontSize(11).fillColor(C.black);
-    doc.text(hrName, W - PAD - hrNW, y + 12, { lineBreak: false });
-    doc.rect(W - PAD - 110, y + 28, 110, 0.75).fill(C.border2);
-    doc.font('Helvetica').fontSize(7.5).fillColor(C.subtle);
+    const hrNW = doc.font('Helvetica-Bold').fontSize(13).widthOfString(hrName);
+    doc.font('Helvetica-Bold').fontSize(13).fillColor(C.black);
+    doc.text(hrName, W - PAD - hrNW, y + 14, { lineBreak: false });
+    doc.rect(W - PAD - 120, y + 32, 120, 0.75).fill(C.border2);
+    doc.font('Helvetica').fontSize(9).fillColor(C.subtle);
     const hrRW = doc.widthOfString('HUMAN RESOURCES', { characterSpacing: 0.5 });
-    doc.text('HUMAN RESOURCES', W - PAD - hrRW, y + 34, { lineBreak: false, characterSpacing: 0.5 });
+    doc.text('HUMAN RESOURCES', W - PAD - hrRW, y + 40, { lineBreak: false, characterSpacing: 0.5 });
 
     // ── VALIDITY STRIP ───────────────────────────────────────
     const stripY = H - 6 - 22;
@@ -1081,7 +1135,7 @@ async function generateOfferLetterPDFInMemory(offerLetter) {
     doc.end();
 
     return new Promise((resolve, reject) => {
-        doc.on('end',   () => resolve(Buffer.concat(buffers)));
+        doc.on('end', () => resolve(Buffer.concat(buffers)));
         doc.on('error', reject);
     });
 }
