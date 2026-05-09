@@ -1,4 +1,5 @@
 import "./globals.css";
+import { Suspense } from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Navbar from "@/components/layout/Navbar";
 import ToastProvider from "@/components/layout/ToastProvider";
@@ -13,7 +14,9 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className="bg-[#fcfcfc] text-[#0a0a0a] font-sans antialiased">
         <AuthProvider>
-          <Navbar />
+          <Suspense fallback={null}>
+            <Navbar />
+          </Suspense>
           <main className="min-h-screen">
             {children}
           </main>
