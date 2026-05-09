@@ -71,9 +71,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading ? children : (
-        <div className="min-h-screen flex items-center justify-center bg-[#fcfcfc] font-black uppercase tracking-widest text-[10px]">Restoring Operational State...</div>
-      )}
+      {children}
     </AuthContext.Provider>
   );
 }
