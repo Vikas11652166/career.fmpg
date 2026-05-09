@@ -7,6 +7,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ShieldCheck, FileText, Download, User, Mail, Phone, Briefcase, GraduationCap, Code, AlertCircle, ExternalLink } from 'lucide-react';
 import ApplicationOfferForm from '@/components/applications/ApplicationOfferForm';
 
 export default function ApplicationDetailPage() {
@@ -198,29 +199,39 @@ export default function ApplicationDetailPage() {
             </h1>
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             {application.resumeUrl && (
               <a 
                 href={application.resumeUrl} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="px-10 py-6 bg-lime-400 text-black rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs hover:scale-[1.05] transition-all shadow-xl shadow-lime-400/20"
+                className="px-8 py-5 bg-lime-400 text-black rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] hover:scale-[1.05] transition-all shadow-xl shadow-lime-400/20 flex items-center gap-3"
               >
-                Access Resume
+                <Download className="w-4 h-4" /> Access Resume
+              </a>
+            )}
+            {application.coverLetterUrl && (
+              <a 
+                href={application.coverLetterUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="px-8 py-5 bg-black text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] hover:scale-[1.05] transition-all shadow-xl shadow-gray-200 flex items-center gap-3"
+              >
+                <FileText className="w-4 h-4 text-lime-400" /> Access Cover Letter
               </a>
             )}
           </div>
         </div>
 
         {/* Phase Indicator */}
-        <div className="bg-white border border-gray-100 p-12 rounded-[3.5rem] shadow-2xl mb-12">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-8">
+        <div className="bg-white border border-gray-100 p-12 rounded-[3.5rem] shadow-2xl mb-12 overflow-x-auto">
+          <div className="flex justify-between items-center min-w-[600px] gap-8">
             {statusPhases.map((phase, i) => (
               <div key={phase} className="flex flex-col items-center gap-4 flex-1 relative">
                 <div className={`w-4 h-4 rounded-full z-10 ${i <= currentPhaseIndex ? (phase === 'rejected' ? 'bg-red-500' : 'bg-lime-500') : 'bg-gray-100'}`} />
                 <span className={`text-[9px] font-black uppercase tracking-widest ${i <= currentPhaseIndex ? 'text-black' : 'text-gray-300'}`}>{phase}</span>
                 {i < statusPhases.length - 1 && phase !== 'rejected' && (
-                  <div className="hidden md:block absolute top-2 left-1/2 w-full h-[2px] bg-gray-50 -z-0" />
+                  <div className="absolute top-2 left-1/2 w-full h-[2px] bg-gray-50 -z-0" />
                 )}
               </div>
             ))}
@@ -231,40 +242,54 @@ export default function ApplicationDetailPage() {
           {/* Main Intelligence */}
           <div className="lg:col-span-2 space-y-12">
             <div className="bg-white border border-gray-100 p-12 rounded-[3.5rem] shadow-2xl space-y-10">
-              <h2 className="text-xs font-black uppercase tracking-[0.3em] text-gray-400 border-b border-gray-50 pb-6">Candidate Parameters</h2>
+              <div className="flex items-center gap-3 border-b border-gray-50 pb-6">
+                 <User className="w-4 h-4 text-lime-500" />
+                 <h2 className="text-xs font-black uppercase tracking-[0.3em] text-gray-400">Candidate Parameters</h2>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Email Identity</span>
-                  <p className="font-bold text-lg">{application.email}</p>
+                  <p className="font-bold text-lg lowercase">{application.email}</p>
                 </div>
                 <div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Communication Line</span>
                   <p className="font-bold text-lg">{application.phone || 'N/A'}</p>
                 </div>
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Academic Background</span>
-                  <p className="font-bold text-lg">{application.education || 'N/A'}</p>
+                <div className="md:col-span-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <GraduationCap className="w-3 h-3 text-lime-500" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Academic Background</span>
+                  </div>
+                  <p className="font-bold text-sm bg-gray-50 p-6 rounded-2xl border border-gray-100 whitespace-pre-wrap">{application.education || 'N/A'}</p>
                 </div>
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Operational Experience</span>
-                  <p className="font-bold text-lg">{application.experience || '0'} YEARS</p>
+                <div className="md:col-span-2">
+                   <div className="flex items-center gap-2 mb-2">
+                    <Briefcase className="w-3 h-3 text-lime-500" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Professional Chronology</span>
+                  </div>
+                  <p className="font-bold text-sm bg-gray-50 p-6 rounded-2xl border border-gray-100 whitespace-pre-wrap">{application.experience || 'N/A'}</p>
                 </div>
               </div>
             </div>
 
             <div className="bg-white border border-gray-100 p-12 rounded-[3.5rem] shadow-2xl space-y-10">
-              <h2 className="text-xs font-black uppercase tracking-[0.3em] text-gray-400 border-b border-gray-50 pb-6">Transmission Content</h2>
+              <div className="flex items-center gap-3 border-b border-gray-50 pb-6">
+                 <Code className="w-4 h-4 text-lime-500" />
+                 <h2 className="text-xs font-black uppercase tracking-[0.3em] text-gray-400">Transmission Content</h2>
+              </div>
               <div className="space-y-10">
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-4">Cover Protocol</span>
-                  <p className="text-gray-600 leading-relaxed font-medium whitespace-pre-wrap">{application.coverLetter || 'NO COVER LETTER TRANSMITTED'}</p>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-4">Mission Statement / Cover Letter</span>
+                  <p className="text-gray-600 leading-relaxed font-medium whitespace-pre-wrap bg-gray-50 p-8 rounded-3xl border border-gray-100">
+                    {application.coverLetter || 'NO MANUAL STATEMENT TRANSMITTED'}
+                  </p>
                 </div>
                 {application.skills && application.skills.length > 0 && (
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-4">Skill Matrix</span>
                     <div className="flex flex-wrap gap-3">
                       {application.skills.map(skill => (
-                        <span key={skill} className="bg-gray-50 border border-gray-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-500">{skill}</span>
+                        <span key={skill} className="bg-lime-50 border border-lime-100 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-lime-600">{skill}</span>
                       ))}
                     </div>
                   </div>
@@ -274,17 +299,22 @@ export default function ApplicationDetailPage() {
 
             {application.questionAnswers && application.questionAnswers.length > 0 && (
               <div className="bg-white border border-gray-100 p-12 rounded-[3.5rem] shadow-2xl space-y-10">
-                <h2 className="text-xs font-black uppercase tracking-[0.3em] text-gray-400 border-b border-gray-50 pb-6">Supplemental Intelligence</h2>
+                <div className="flex items-center gap-3 border-b border-gray-50 pb-6">
+                   <ShieldCheck className="w-4 h-4 text-lime-500" />
+                   <h2 className="text-xs font-black uppercase tracking-[0.3em] text-gray-400">Supplemental Intelligence</h2>
+                </div>
                 <div className="space-y-12">
                   {application.questionAnswers.map((qa, i) => (
                     <div key={i} className="space-y-4">
                       <span className="text-[10px] font-black uppercase tracking-widest text-lime-500 block">Question {i + 1}</span>
-                      <p className="font-black uppercase tracking-tighter text-xl">{qa.questionText}</p>
-                      <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                      <p className="font-black uppercase tracking-tighter text-xl leading-tight">{qa.questionText}</p>
+                      <div className="bg-gray-50 p-8 rounded-3xl border border-gray-100">
                         {qa.questionType === 'file' && qa.fileUrl ? (
-                          <a href={qa.fileUrl} target="_blank" rel="noopener noreferrer" className="text-lime-500 font-bold hover:underline">ACCESS ATTACHMENT →</a>
+                          <a href={qa.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-lime-600 font-black uppercase tracking-widest text-[10px] hover:underline bg-lime-100 px-4 py-2 rounded-lg">
+                            <ExternalLink className="w-3 h-3" /> ACCESS ATTACHMENT
+                          </a>
                         ) : (
-                          <p className="font-bold text-gray-700 whitespace-pre-wrap">{qa.answer || 'NO RESPONSE'}</p>
+                          <p className="font-bold text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">{qa.answer || 'NO RESPONSE'}</p>
                         )}
                       </div>
                     </div>
@@ -297,12 +327,15 @@ export default function ApplicationDetailPage() {
           {/* Action Cockpit */}
           <div className="space-y-12">
             {offerLetter && (
-              <div className="bg-white border-2 border-lime-400 p-12 rounded-[3.5rem] shadow-2xl space-y-10">
-                <h2 className="text-xs font-black uppercase tracking-[0.3em] text-lime-500 border-b border-gray-50 pb-6">Offer Protocol</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              <div className="bg-white border-4 border-lime-400 p-12 rounded-[3.5rem] shadow-2xl space-y-10">
+                <div className="flex items-center gap-3 border-b border-gray-50 pb-6">
+                   <ShieldCheck className="w-4 h-4 text-lime-500" />
+                   <h2 className="text-xs font-black uppercase tracking-[0.3em] text-lime-500">Offer Protocol</h2>
+                </div>
+                <div className="space-y-6">
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Protocol Status</span>
-                    <p className="font-black text-xl uppercase text-lime-500">{offerLetter.status}</p>
+                    <p className="font-black text-2xl uppercase text-lime-500">{offerLetter.status}</p>
                   </div>
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Issued On</span>
@@ -314,30 +347,31 @@ export default function ApplicationDetailPage() {
                       <p className="font-bold text-lg">{new Date(offerLetter.acceptedAt).toLocaleDateString()}</p>
                     </div>
                   )}
-                  <div className="md:col-span-2">
-                    <button 
-                      onClick={async () => {
-                        try {
-                          const res = await offerLetterService.downloadOfferLetter(offerLetter._id);
-                          const url = window.URL.createObjectURL(res.data);
-                          const link = document.createElement('a');
-                          link.href = url;
-                          link.download = `offer-letter-${application.fullName.replace(/\s+/g, '_')}.pdf`;
-                          link.click();
-                        } catch (e) { toast.error("Download failed"); }
-                      }}
-                      className="text-lime-500 font-black uppercase tracking-widest text-[10px] hover:underline"
-                    >
-                      Download Transmitted Copy →
-                    </button>
-                  </div>
+                  <button 
+                    onClick={async () => {
+                      try {
+                        const res = await offerLetterService.downloadOfferLetter(offerLetter._id);
+                        const url = window.URL.createObjectURL(res.data);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `offer-letter-${application.fullName.replace(/\s+/g, '_')}.pdf`;
+                        link.click();
+                      } catch (e) { toast.error("Download failed"); }
+                    }}
+                    className="w-full py-5 bg-lime-400 text-black rounded-2xl font-black uppercase tracking-widest text-[10px] hover:scale-[1.02] transition-all flex items-center justify-center gap-3 shadow-lg shadow-lime-400/20"
+                  >
+                    <Download className="w-4 h-4" /> Download Copy
+                  </button>
                 </div>
               </div>
             )}
 
             {(isAdmin || isHR) && (
               <div className="bg-[#0a0a0a] text-white p-12 rounded-[3.5rem] shadow-2xl space-y-10">
-                <h2 className="text-xs font-black uppercase tracking-[0.3em] text-lime-400 border-b border-white/10 pb-6">Command Cockpit</h2>
+                <div className="flex items-center gap-3 border-b border-white/10 pb-6">
+                   <ShieldCheck className="w-4 h-4 text-lime-400" />
+                   <h2 className="text-xs font-black uppercase tracking-[0.3em] text-lime-400">Command Cockpit</h2>
+                </div>
                 <div className="space-y-4">
                   {statusPhases.map((phase) => (
                     <button
@@ -345,7 +379,7 @@ export default function ApplicationDetailPage() {
                       onClick={() => updateStatus(phase)}
                       disabled={processing || application.status === phase || !isStatusChangeAllowed(phase)}
                       className={`w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] transition-all border-2 
-                        ${application.status === phase ? 'bg-lime-400 border-lime-400 text-black' : 
+                        ${application.status === phase ? 'bg-lime-400 border-lime-400 text-black shadow-lg shadow-lime-400/20' : 
                           !isStatusChangeAllowed(phase) ? 'bg-transparent border-white/5 text-gray-600 cursor-not-allowed' :
                           'bg-transparent border-white/10 hover:border-lime-400 hover:text-lime-400'}`}
                     >
@@ -359,14 +393,14 @@ export default function ApplicationDetailPage() {
             <div className="bg-white border border-gray-100 p-12 rounded-[3.5rem] shadow-2xl space-y-8">
               <h2 className="text-xs font-black uppercase tracking-[0.3em] text-gray-400">Position Context</h2>
               <div>
-                <p className="font-black uppercase tracking-tighter text-2xl mb-2">{application.jobId?.title}</p>
+                <p className="font-black uppercase tracking-tighter text-2xl mb-2 leading-tight">{application.jobId?.title}</p>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{application.jobId?.company} • {application.jobId?.department}</p>
               </div>
               <Link 
                 href={`/jobs/${application.jobId?.slug || application.jobId?._id}`}
-                className="text-lime-500 font-black uppercase tracking-widest text-[10px] hover:underline block"
+                className="inline-flex items-center gap-2 text-lime-500 font-black uppercase tracking-widest text-[10px] hover:underline"
               >
-                View Position Specs →
+                View Position Specs <ExternalLink className="w-3 h-3" />
               </Link>
             </div>
           </div>

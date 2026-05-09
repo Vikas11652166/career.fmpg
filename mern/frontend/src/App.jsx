@@ -9,6 +9,7 @@ import Loader from './components/common/Loader';
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
 import EmployeeRoute from './components/EmployeeRoute';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Lazy load pages
 const Home = lazy(() => import('./pages/Home'));
@@ -24,6 +25,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Certificates = lazy(() => import('./pages/Certificates'));
 const OfferLetters = lazy(() => import('./pages/OfferLetters'));
 const VerifyCertificate = lazy(() => import('./pages/VerifyCertificate'));
+const VerifyOfferLetter = lazy(() => import('./pages/VerifyOfferLetter'));
 const Contact = lazy(() => import('./pages/Contact'));
 const SubmitReview = lazy(() => import('./pages/SubmitReview'));
 const AdminReviewManagement = lazy(() => import('./components/reviews/AdminReviewManagement'));
@@ -148,6 +150,10 @@ const AppContent = () => {
             <Route path="/verify" element={<VerifyCertificate />} />
             <Route path="/verify/:id" element={<VerifyCertificate />} />
 
+            {/* Public offer letter verification routes */}
+            <Route path="/verify-offer" element={<VerifyOfferLetter />} />
+            <Route path="/verify-offer/:id" element={<VerifyOfferLetter />} />
+
             {/* Contact page */}
             <Route path="/contact" element={<Contact />} />
 
@@ -246,9 +252,11 @@ const AppContent = () => {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <ErrorBoundary>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ErrorBoundary>
     </Router>
   );
 }

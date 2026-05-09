@@ -155,6 +155,34 @@ exports.getOfferLetterById = async (req, res) => {
     }
 };
 
+exports.verifyOfferLetter = async (req, res) => {
+    console.log(`Verify Offer: ${req.params.id}`);
+    try {
+        const offerLetterId = normalizeOfferLetterLookupId(req.params.id);
+
+        if (!mongoose.Types.ObjectId.isValid(offerLetterId)) {
+            return res.status(400).json({ message: "Invalid offer letter ID" });
+        }
+
+        console.log(`Finding: ${offerLetterId}`);
+        const offerLetter = await OfferLetter.findById(offerLetterId).populate("userId", "name email");
+
+        if (!offerLetter) {
+            console.log(`Not found: ${offerLetterId}`);
+            return res.status(404).json({ message: "Offer letter not found" });
+        }
+
+        console.log(`Verified Offer: ${offerLetter.candidateName}`);
+        res.status(200).json({
+            message: "Offer letter verified successfully",
+            offerLetter
+        });
+    } catch (error) {
+        console.error("Error:", error.message);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
 exports.updateOfferLetterStatus = async (req, res) => {
     console.log(`Update offer letter status: ${req.params.id}`);
     try {
@@ -663,147 +691,97 @@ function getHrSignatoryName(offerLetter) {
 }
 
 // ============================================================
-// Modern Stylized Offer Letter Generation
+// FMPG — Light-Theme Offer Letter PDF Generator (A4)
+// Drop-in replacement for generateOfferLetterPDFInMemory()
+// Light/white theme matching fmpg.in aesthetic
 // ============================================================
 
+// Colour palette — light theme matching fmpg.in
 const C = {
-    black: '#0d0d0d',
-    dark2: '#1c1c1c',
-    dark3: '#252525',
-    lime: '#d6f300',
-    limeDim: '#a8c200',
-    white: '#ffffff',
-    offWhite: '#e8e8e8',
-    gray1: '#aaaaaa',
-    gray2: '#666666',
+    white:      '#ffffff',
+    bg:         '#fafafa',
+    bgAccent:   '#f4fac0',   // lime tint panels
+    lime:       '#c8e600',   // primary brand lime
+    limeDark:   '#8aad00',   // darker lime for text/accents
+    limeBorder: '#daf04a',   // lighter lime border
+    limeDeep:   '#4a6800',   // deep lime for text on lime bg
+    black:      '#111111',
+    dark:       '#1a1a1a',
+    mid:        '#444444',
+    muted:      '#777777',
+    subtle:     '#aaaaaa',
+    border:     '#ebebeb',
+    border2:    '#dddddd',
+    rowBg:      '#f9fdf0',   // tinted position card bg
 };
 
-const W = 595.28; // A4 Portrait
-const H = 841.89;
+const W = 595.28;   // A4 width  (pt)
+const H = 841.89;   // A4 height (pt)
+const PAD = 40;     // horizontal margin
+
+// ── helpers ──────────────────────────────────────────────────
 
 function roundRect(doc, x, y, w, h, r) {
     const rr = Math.min(r, w / 2, h / 2);
     doc.moveTo(x + rr, y)
-        .lineTo(x + w - rr, y)
-        .quadraticCurveTo(x + w, y, x + w, y + rr)
-        .lineTo(x + w, y + h - rr)
-        .quadraticCurveTo(x + w, y + h, x + w - rr, y + h)
-        .lineTo(x + rr, y + h)
-        .quadraticCurveTo(x, y + h, x, y + h - rr)
-        .lineTo(x, y + rr)
-        .quadraticCurveTo(x, y, x + rr, y)
+        .lineTo(x + w - rr, y).quadraticCurveTo(x + w, y, x + w, y + rr)
+        .lineTo(x + w, y + h - rr).quadraticCurveTo(x + w, y + h, x + w - rr, y + h)
+        .lineTo(x + rr, y + h).quadraticCurveTo(x, y + h, x, y + h - rr)
+        .lineTo(x, y + rr).quadraticCurveTo(x, y, x + rr, y)
         .closePath();
 }
 
-function textCenter(doc, str, y, opts = {}) {
-    const tw = doc.widthOfString(str);
-    doc.text(str, (W - tw) / 2, y, { lineBreak: false, ...opts });
+function fillRR(doc, x, y, w, h, r, fill) {
+    roundRect(doc, x, y, w, h, r);
+    doc.fill(fill);
 }
 
-function hex2rgb(h) {
-    const v = parseInt(h.replace('#', ''), 16);
-    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+function strokeRR(doc, x, y, w, h, r, stroke, lw = 0.5) {
+    roundRect(doc, x, y, w, h, r);
+    doc.lineWidth(lw).strokeColor(stroke).stroke();
 }
 
-function lerpColor(a, b, t) {
-    const ca = hex2rgb(a), cb = hex2rgb(b);
-    return [
-        Math.round(ca[0] + (cb[0] - ca[0]) * t),
-        Math.round(ca[1] + (cb[1] - ca[1]) * t),
-        Math.round(ca[2] + (cb[2] - ca[2]) * t),
-    ];
+function pill(doc, x, y, w, h, fill, strokeColor) {
+    const r = h / 2;
+    if (fill)        fillRR(doc, x, y, w, h, r, fill);
+    if (strokeColor) strokeRR(doc, x, y, w, h, r, strokeColor, 0.75);
 }
 
-function drawBackground(doc) {
-    doc.rect(0, 0, W, H).fill(C.black);
+function sectionLabel(doc, text, x, y, totalWidth) {
+    doc.font('Helvetica-Bold').fontSize(7).fillColor(C.limeDark);
+    doc.text(text.toUpperCase(), x, y + 1, { lineBreak: false, characterSpacing: 1.3 });
+    const tw = doc.widthOfString(text.toUpperCase(), { characterSpacing: 1.3 });
+    doc.rect(x + tw + 8, y + 4, totalWidth - tw - 8, 0.5).fill(C.border);
+}
 
-    // Decorative circles
-    for (let i = 18; i >= 0; i--) {
-        const r = 240 * (i / 18);
-        const lv = Math.round(8 * (i / 18));
-        const col = `#${[lv + 14, lv + 16, 0].map(x => Math.min(x, 255).toString(16).padStart(2, '0')).join('')}`;
-        doc.circle(W * 0.9, H * 0.1, r).fill(col);
-    }
+function detailCell(doc, label, value, x, y, cellW, accent) {
+    doc.font('Helvetica').fontSize(7).fillColor(C.subtle);
+    doc.text(label.toUpperCase(), x, y, { lineBreak: false, characterSpacing: 0.7 });
+    doc.font('Helvetica-Bold').fontSize(10).fillColor(accent ? C.limeDark : C.dark);
+    doc.text(value, x, y + 12, { lineBreak: false, width: cellW - 10 });
+}
 
-    for (let i = 14; i >= 0; i--) {
-        const r = 180 * (i / 14);
-        const lv = Math.round(6 * (i / 14));
-        const col = `#${[lv + 12, lv + 14, 0].map(x => Math.min(x, 255).toString(16).padStart(2, '0')).join('')}`;
-        doc.circle(W * 0.1, H * 0.9, r).fill(col);
-    }
-
-    // Borders
-    doc.rect(0, 0, W, 6).fill(C.lime);
-    doc.rect(0, H - 6, W, 6).fill(C.lime);
-    doc.rect(0, 6, 5, H - 12).fill(C.limeDim);
-    doc.rect(W - 5, 6, 5, H - 12).fill(C.limeDim);
-
+function checkmark(doc, cx, cy, size) {
     doc.save();
-    doc.rect(20, 20, W - 40, H - 40).lineWidth(0.8).strokeColor(C.limeDim).stroke();
+    doc.lineWidth(1.8).strokeColor(C.dark).lineCap('round').lineJoin('round');
+    doc.moveTo(cx - size * 0.38, cy)
+       .lineTo(cx - size * 0.05, cy + size * 0.32)
+       .lineTo(cx + size * 0.38, cy - size * 0.28)
+       .stroke();
     doc.restore();
-
-    // Corner squares
-    [[20, 20], [W - 32, 20], [20, H - 32], [W - 32, H - 32]].forEach(([cx, cy]) => {
-        doc.rect(cx, cy, 12, 12).fill(C.lime);
-    });
-
-    // Logo section
-    // Logo section
-    const logoX = 40, logoY = 40, logoW = 185, logoH = 40;
-    doc.save();
-    roundRect(doc, logoX, logoY, logoW, logoH, 10);
-    doc.fill(C.dark2);
-    doc.restore();
-
-    doc.rect(logoX, logoY, 4, logoH).fill(C.lime);
-
-    // Dynamic Logo Image Integration
-    let logoDrawn = false;
-    try {
-        const logoPath = path.join(__dirname, "..", "assets", "logo_dryukr.png");
-        if (fs.existsSync(logoPath)) {
-            doc.image(logoPath, logoX + 12, logoY + 6, { height: logoH - 12 });
-            logoDrawn = true;
-        }
-    } catch (err) {
-        console.error("PDF Logo Error:", err);
-    }
-
-    if (!logoDrawn) {
-        doc.font('Helvetica-Bold').fontSize(18).fillColor(C.lime);
-        doc.text('FMPG', logoX + 12, logoY + 8, { lineBreak: false });
-    }
-
-    // FMPG Text
-    doc.font('Helvetica-Bold').fontSize(16).fillColor(C.lime);
-    doc.text('FMPG', logoX + 55, logoY + 12, { lineBreak: false });
 }
+
+// ── QR code ──────────────────────────────────────────────────
 
 function drawQR(doc, url, qrX, qrY, qrSize) {
     const qrData = QRCode.create(url, { errorCorrectionLevel: 'H' });
     const modules = qrData.modules.size;
-    const pad = qrSize * 0.028;
+    const pad = qrSize * 0.07;
     const effective = qrSize - pad * 2;
     const modSize = effective / modules;
 
-    roundRect(doc, qrX, qrY, qrSize, qrSize, 6);
-    doc.fill(C.black);
-
-    doc.save();
-    roundRect(doc, qrX, qrY, qrSize, qrSize, 6);
-    doc.lineWidth(1).strokeColor(C.limeDim).stroke();
-    doc.restore();
-
-    const getCol = (row) => lerpColor(C.lime, C.white, row / (modules - 1));
-
-    const drawEye = (row, col) => {
-        const cx = qrX + pad + (col + 3.5) * modSize;
-        const cy = qrY + pad + (row + 3.5) * modSize;
-        const ec = getCol(row + 3.5);
-        doc.circle(cx, cy, 3.5 * modSize).fill(ec);
-        doc.circle(cx, cy, 2.5 * modSize).fill(C.black);
-        doc.circle(cx, cy, 1.5 * modSize).fill(ec);
-    };
+    fillRR(doc, qrX, qrY, qrSize, qrSize, 6, C.bg);
+    strokeRR(doc, qrX, qrY, qrSize, qrSize, 6, C.border2, 0.5);
 
     for (let r = 0; r < modules; r++) {
         for (let c = 0; c < modules; c++) {
@@ -811,226 +789,301 @@ function drawQR(doc, url, qrX, qrY, qrSize) {
             const tl = r < 7 && c < 7;
             const tr = r < 7 && c >= modules - 7;
             const bl = r >= modules - 7 && c < 7;
-            if (tl || tr || bl) {
-                if (r === 0 && c === 0) drawEye(0, 0);
-                if (r === 0 && c === modules - 7) drawEye(0, modules - 7);
-                if (r === modules - 7 && c === 0) drawEye(modules - 7, 0);
-                continue;
-            }
+            if (tl || tr || bl) continue;
             const cx = qrX + pad + c * modSize + modSize / 2;
             const cy = qrY + pad + r * modSize + modSize / 2;
-            doc.circle(cx, cy, (modSize / 2) * 0.92).fill(getCol(r));
+            doc.circle(cx, cy, (modSize / 2) * 0.82).fill(C.dark);
         }
     }
-
-    const bLen = 10, bW = 1.5, bp = -5;
-    [
-        [qrX + bp, qrY + bp, 1, 1],
-        [qrX + qrSize - bp, qrY + bp, -1, 1],
-        [qrX + bp, qrY + qrSize - bp, 1, -1],
-        [qrX + qrSize - bp, qrY + qrSize - bp, -1, -1],
-    ].forEach(([cx, cy, dx, dy]) => {
-        doc.save();
-        doc.lineWidth(bW).strokeColor(C.lime);
-        doc.moveTo(cx, cy).lineTo(cx + dx * bLen, cy).stroke();
-        doc.moveTo(cx, cy).lineTo(cx, cy + dy * bLen).stroke();
-        doc.restore();
+    // Eyes
+    [[0, 0], [0, modules - 7], [modules - 7, 0]].forEach(([er, ec]) => {
+        const ex = qrX + pad + (ec + 3.5) * modSize;
+        const ey = qrY + pad + (er + 3.5) * modSize;
+        doc.circle(ex, ey, 3.5 * modSize).fill(C.dark);
+        doc.circle(ex, ey, 2.5 * modSize).fill(C.white);
+        doc.circle(ex, ey, 1.5 * modSize).fill(C.limeDark);
     });
 }
 
-async function generateOfferLetterPDFInMemory(offerLetter) {
-    console.log(`Generating stylized offer letter for: ${offerLetter.candidateName}`);
+// ── main PDF function ─────────────────────────────────────────
 
-    const verifyBase = (process.env.FRONTEND_URL || 'https://fmpg.vercel.app').replace(/\/+$/, '');
-    const verifyUrl = `${verifyBase}/verify-offer/${offerLetter._id}`;
+async function generateOfferLetterPDFInMemory(offerLetter) {
+    console.log(`Generating light-theme offer letter PDF for: ${offerLetter.candidateName}`);
+
+    const verifyBase = (process.env.FRONTEND_URL || 'https://careers.fmpg.in').replace(/\/+$/, '');
+    const verifyUrl  = `${verifyBase}/verify-offer/${offerLetter._id}`;
 
     const fmt = (d) => d
         ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
         : '—';
 
+    const isInternship = (offerLetter.offerType && offerLetter.offerType.toLowerCase() === 'internship') ||
+        (offerLetter.position && offerLetter.position.toLowerCase().includes('intern')) ||
+        (offerLetter.salary === 0 || offerLetter.salary === '0');
+
+    const isExtended = !!(offerLetter.extensionHistory && offerLetter.extensionHistory.length > 0);
+
+    const salaryLabel = isInternship ? 'Stipend' : 'Annual CTC';
+    const salaryValue = (offerLetter.salary === 0 || offerLetter.salary === '0')
+        ? 'Unpaid'
+        : `Rs.${formatCurrencyValue(offerLetter.salary)}`;
+    const payoutSuffix = (isInternship && offerLetter.payoutFrequency) ? ` (${offerLetter.payoutFrequency})` : '';
+
+    const offerTypeLabel = offerLetter.offerType || (isInternship ? 'Internship' : 'Full-time');
+
     const doc = new PDFDocument({
-        size: [W, H],
+        size: 'A4',
         margins: { top: 0, bottom: 0, left: 0, right: 0 },
         autoFirstPage: false,
         info: {
-            Title: `Offer Letter - ${offerLetter.candidateName}`,
-            Author: 'FMPG',
+            Title:   `Offer Letter — ${offerLetter.candidateName}`,
+            Author:  'FMPG',
             Subject: 'Employment Offer Letter',
         }
     });
 
-    doc.addPage({ size: [W, H], margins: { top: 0, bottom: 0, left: 0, right: 0 } });
+    doc.addPage({ size: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
 
     const buffers = [];
     doc.on('data', (b) => buffers.push(b));
 
-    drawBackground(doc);
+    // ── BACKGROUND ──────────────────────────────────────────
+    doc.rect(0, 0, W, H).fill(C.white);
+    // Top lime bar
+    doc.rect(0, 0, W, 6).fill(C.lime);
+    // Bottom lime bar
+    doc.rect(0, H - 6, W, 6).fill(C.lime);
 
-    let y = 100;
+    // ── HEADER STRIP ────────────────────────────────────────
+    const headerH = 58;
+    const headerY = 6;
+    doc.rect(0, headerY, W, headerH).fill(C.white);
+    doc.rect(0, headerY + headerH - 0.5, W, 0.5).fill(C.border);
 
-    // Title
-    const isExtended = offerLetter.extensionHistory && offerLetter.extensionHistory.length > 0;
-    const titleText = isExtended ? 'OFFER EXTENSION' : 'OFFER LETTER';
-    
-    doc.font('Helvetica-Bold').fontSize(22).fillColor(C.white);
-    doc.text(titleText, 40, y);
-    doc.rect(40, y + 28, isExtended ? 100 : 60, 3).fill(C.lime);
+    // ── LOGO (from assets, 140×40 pt reserved zone) ─────────
+    const logoX = PAD;
+    const logoY = headerY + (headerH - 40) / 2;
+    const logoW = 140;
+    const logoH = 40;
 
-    doc.font('Helvetica').fontSize(9).fillColor(C.gray1);
-    doc.text(`Ref: FMPG-OFF-${offerLetter._id.toString().slice(-6).toUpperCase()}`, W - 180, y + 5, { align: 'right', width: 140 });
-    doc.text(`Issued: ${fmt(offerLetter.createdAt)}`, W - 180, y + 17, { align: 'right', width: 140 });
+    let logoDrawn = false;
+    try {
+        const logoPath = path.join(__dirname, '..', 'assets', 'logo_dryukr.png');
+        if (fs.existsSync(logoPath)) {
+            doc.image(logoPath, logoX, logoY, { fit: [logoW, logoH], align: 'left', valign: 'center' });
+            logoDrawn = true;
+        }
+    } catch (err) {
+        console.warn('Logo load failed:', err.message);
+    }
 
-    y += 60;
+    if (!logoDrawn) {
+        // Fallback text mark when logo file is missing
+        fillRR(doc, logoX, logoY + 6, 28, 28, 6, C.lime);
+        doc.font('Helvetica-Bold').fontSize(14).fillColor(C.dark);
+        doc.text('F', logoX + 8, logoY + 14, { lineBreak: false });
+        doc.font('Helvetica-Bold').fontSize(18).fillColor(C.dark);
+        doc.text('FMPG', logoX + 36, logoY + 11, { lineBreak: false });
+    }
 
-    // Candidate Greeting
-    doc.font('Helvetica-Bold').fontSize(16).fillColor(C.white);
-    doc.text(`Dear ${offerLetter.candidateName},`, 40, y);
-    y += 25;
+    // Reference — top right
+    const refX = W - PAD - 140;
+    const refY = headerY + 12;
+    doc.font('Helvetica').fontSize(7).fillColor(C.subtle);
+    doc.text('REFERENCE', refX, refY, { lineBreak: false, characterSpacing: 0.8 });
+    doc.font('Helvetica').fontSize(9).fillColor(C.mid);
+    doc.text(`FMPG-OFF-${offerLetter._id.toString().slice(-6).toUpperCase()}`, refX, refY + 12, { lineBreak: false });
+    doc.font('Helvetica').fontSize(8).fillColor(C.subtle);
+    doc.text(`Issued: ${fmt(offerLetter.createdAt)}`, refX, refY + 24, { lineBreak: false });
 
-    doc.font('Helvetica').fontSize(10).fillColor(C.gray1).lineGap(4);
-    const introText = isExtended 
-        ? `We are pleased to inform you that the validity of your offer to join FMPG has been extended. We remain excited about your potential contribution to our team.`
-        : `We are delighted to extend this formal offer of appointment to join FMPG. Your skills and background impressed our team, and we believe you will be a valuable addition to our growing organization.`;
-    doc.text(introText, 40, y, { width: W - 80 });
-    y += 50;
+    // ── BODY ────────────────────────────────────────────────
+    let y = headerY + headerH + 22;
 
-    // Position Highlight
-    roundRect(doc, 40, y, W - 80, 50, 8);
-    doc.fill(C.dark3);
-    doc.save();
-    roundRect(doc, 40, y, W - 80, 50, 8);
-    doc.lineWidth(0.8).strokeColor(C.limeDim).opacity(0.4).stroke();
-    doc.restore();
+    // Tag pill
+    const tagText = isExtended ? 'OFFER EXTENSION' : 'OFFICIAL OFFER LETTER';
+    doc.font('Helvetica-Bold').fontSize(7);
+    const tagTextW = doc.widthOfString(tagText, { characterSpacing: 1.1 });
+    const tagW = tagTextW + 34;
+    const tagH = 18;
+    pill(doc, PAD, y, tagW, tagH, C.bgAccent, C.limeBorder);
+    doc.circle(PAD + 10, y + tagH / 2, 3).fill(C.limeDark);
+    doc.font('Helvetica-Bold').fontSize(7).fillColor(C.limeDeep);
+    doc.text(tagText, PAD + 18, y + 5.5, { lineBreak: false, characterSpacing: 1.1 });
+    y += tagH + 10;
 
-    doc.font('Helvetica').fontSize(9).fillColor(C.gray2);
-    doc.text('POSITION OFFERED', 55, y + 12);
-    doc.font('Helvetica-Bold').fontSize(14).fillColor(C.lime);
-    doc.text(offerLetter.position.toUpperCase(), 55, y + 24);
+    // Headline
+    const h1 = isExtended ? 'Your Offer Has Been' : "You're Hired.";
+    const h2 = isExtended ? 'Extended.' : 'Welcome to FMPG.';
+    doc.font('Helvetica-Bold').fontSize(26).fillColor(C.black);
+    doc.text(h1, PAD, y, { lineBreak: false });
+    y += 30;
+    doc.font('Helvetica-Bold').fontSize(26).fillColor(C.limeDark);
+    doc.text(h2, PAD, y, { lineBreak: false });
+    y += 32;
 
-    y += 75;
+    // Lime underline accent
+    doc.rect(PAD, y, 44, 4).fill(C.lime);
+    y += 14;
 
-    const isInternship = (offerLetter.offerType && offerLetter.offerType.toLowerCase() === 'internship') ||
-        (offerLetter.position && offerLetter.position.toLowerCase().includes('intern')) ||
-        (offerLetter.salary === 0 || offerLetter.salary === "0");
+    // Greeting
+    doc.font('Helvetica-Bold').fontSize(11).fillColor(C.dark);
+    doc.text(`Dear ${offerLetter.candidateName},`, PAD, y, { lineBreak: false });
+    y += 14;
 
-    const salaryLabel = isInternship ? 'Stipend' : 'Salary';
-    const salaryValue = (offerLetter.salary === 0 || offerLetter.salary === "0")
-        ? 'Unpaid'
-        : `₹${formatCurrencyValue(offerLetter.salary)}`;
+    const introText = isExtended
+        ? `We are pleased to inform you that the validity of your offer to join FMPG has been extended. We remain excited about your potential contribution and look forward to welcoming you on board.`
+        : `We are delighted to extend this formal offer of appointment to join the FMPG family. Your skills and background impressed our team, and we believe you will be a valuable addition to our growing organization.`;
 
-    const payoutInfo = (isInternship && offerLetter.payoutFrequency)
-        ? ` (${offerLetter.payoutFrequency})`
-        : '';
+    doc.font('Helvetica').fontSize(9.5).fillColor(C.muted).lineGap(2);
+    doc.text(introText, PAD, y, { width: W - PAD * 2 });
+    y += 40;
+
+    // ── POSITION CARD ────────────────────────────────────────
+    const cardH = 54;
+    fillRR(doc, PAD, y, W - PAD * 2, cardH, 8, C.rowBg);
+    doc.rect(PAD, y, 4, cardH).fill(C.lime);    // left accent stripe
+    strokeRR(doc, PAD, y, W - PAD * 2, cardH, 8, C.limeBorder, 0.75);
+
+    doc.font('Helvetica').fontSize(7.5).fillColor(C.subtle);
+    doc.text('POSITION OFFERED', PAD + 16, y + 10, { lineBreak: false, characterSpacing: 0.8 });
+    doc.font('Helvetica-Bold').fontSize(15).fillColor(C.black);
+    doc.text(offerLetter.position.toUpperCase(), PAD + 16, y + 21, { lineBreak: false });
+    if (offerLetter.department) {
+        doc.font('Helvetica').fontSize(8.5).fillColor(C.subtle);
+        doc.text(offerLetter.department, PAD + 16, y + 39, { lineBreak: false });
+    }
+
+    // Type badge
+    doc.font('Helvetica-Bold').fontSize(7.5);
+    const bTW = doc.widthOfString(offerTypeLabel.toUpperCase(), { characterSpacing: 0.7 });
+    const badgeW = bTW + 20;
+    const badgeX = W - PAD - badgeW - 14;
+    const badgeY = y + (cardH - 18) / 2;
+    pill(doc, badgeX, badgeY, badgeW, 18, C.bgAccent, C.limeBorder);
+    doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C.limeDeep);
+    doc.text(offerTypeLabel.toUpperCase(), badgeX + 10, badgeY + 5, { lineBreak: false, characterSpacing: 0.7 });
+
+    y += cardH + 20;
+
+    // ── DETAILS GRID ─────────────────────────────────────────
+    sectionLabel(doc, 'Offer Details', PAD, y, W - PAD * 2);
+    y += 16;
 
     const details = [
-        ['Joining Date', fmt(offerLetter.startDate)],
-        ['Duration', getOfferDurationText(offerLetter)],
-        [salaryLabel, salaryValue + payoutInfo],
-        ['Work Type', offerLetter.workType || 'On-site'],
-        ['Location', offerLetter.joiningLocation],
-        ['Reporting To', offerLetter.reportingManager || 'FMPG Team'],
+        ['Joining Date', fmt(offerLetter.startDate),                    false],
+        ['Duration',     getOfferDurationText(offerLetter),             false],
+        [salaryLabel,    salaryValue + payoutSuffix,                    true],
+        ['Work Type',    offerLetter.workType || 'On-site',             false],
+        ['Location',     offerLetter.joiningLocation,                   false],
+        ['Reporting To', offerLetter.reportingManager || 'FMPG Team',  false],
     ];
 
-    doc.font('Helvetica-Bold').fontSize(11).fillColor(C.white);
-    doc.text('OFFER DETAILS', 40, y);
-    y += 15;
-    doc.rect(40, y, W - 80, 0.5).fill(C.limeDim);
-    y += 15;
+    const gridW = W - PAD * 2;
+    const cellW = gridW / 3;
+    const cellH = 38;
+    const rows  = Math.ceil(details.length / 3);
+    const gridH = rows * cellH;
 
-    details.forEach(([label, value], i) => {
-        const col = i % 2;
-        const row = Math.floor(i / 2);
-        const curX = 40 + col * (W / 2 - 40);
-        const curY = y + row * 35;
+    strokeRR(doc, PAD, y, gridW, gridH, 6, C.border, 0.5);
+    for (let c = 1; c < 3; c++) doc.rect(PAD + c * cellW, y, 0.5, gridH).fill(C.border);
+    for (let r = 1; r < rows; r++) doc.rect(PAD, y + r * cellH, gridW, 0.5).fill(C.border);
 
-        doc.font('Helvetica').fontSize(8).fillColor(C.gray2);
-        doc.text(label, curX, curY);
-        doc.font('Helvetica-Bold').fontSize(10).fillColor(C.offWhite);
-        doc.text(value, curX, curY + 12);
+    details.forEach(([label, value, accent], i) => {
+        const col = i % 3;
+        const row = Math.floor(i / 3);
+        detailCell(doc, label, value, PAD + col * cellW + 12, y + row * cellH + 8, cellW, accent);
     });
+    y += gridH + 20;
 
-    y += 120;
-
-    // Terms & Conditions
-    doc.font('Helvetica-Bold').fontSize(11).fillColor(C.white);
-    doc.text('TERMS & EXPECTATIONS', 40, y);
-    y += 15;
-    doc.rect(40, y, W - 80, 0.5).fill(C.limeDim);
-    y += 15;
+    // ── TERMS ────────────────────────────────────────────────
+    sectionLabel(doc, 'Terms & Expectations', PAD, y, W - PAD * 2);
+    y += 16;
 
     const terms = [
-        'Confidentiality: You agree to maintain strict confidentiality of all company data and trade secrets.',
-        'Code Ownership: All work produced during your tenure remains the exclusive property of FMPG.',
-        'Professionalism: You are expected to adhere to our code of conduct and performance standards.',
-        'Acceptance: This offer is contingent upon successful verification of your credentials.',
+        ['Confidentiality', 'Maintain strict confidentiality of all company data and trade secrets during and after your tenure.'],
+        ['Code Ownership',  'All work produced during your tenure remains the exclusive intellectual property of FMPG.'],
+        ['Professionalism', 'Adhere to our code of conduct and meet agreed performance standards throughout your role.'],
+        ['Acceptance',      'This offer is contingent upon successful background verification and validation of credentials.'],
     ];
 
-    terms.forEach(term => {
-        doc.circle(45, y + 4, 2).fill(C.lime);
-        doc.font('Helvetica').fontSize(9).fillColor(C.gray1);
-        doc.text(term, 55, y, { width: W - 100 });
-        y += 22;
+    const termsH = terms.length * 17 + 14;
+    fillRR(doc, PAD, y, W - PAD * 2, termsH, 6, C.bg);
+    strokeRR(doc, PAD, y, W - PAD * 2, termsH, 6, C.border, 0.5);
+
+    let ty = y + 10;
+    terms.forEach(([title, body]) => {
+        doc.circle(PAD + 13, ty + 4.5, 2.5).fill(C.lime);
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.mid);
+        doc.text(`${title}: `, PAD + 21, ty, { lineBreak: false });
+        const tw = doc.widthOfString(`${title}: `);
+        doc.font('Helvetica').fontSize(8.5).fillColor(C.muted);
+        doc.text(body, PAD + 21 + tw, ty, { lineBreak: false, width: W - PAD * 2 - 32 - tw });
+        ty += 17;
     });
+    y += termsH + 18;
 
-    y += 30;
+    // ── ACCEPTANCE BAR ───────────────────────────────────────
+    const acceptH = 50;
+    fillRR(doc, PAD, y, W - PAD * 2, acceptH, 8, C.bgAccent);
+    strokeRR(doc, PAD, y, W - PAD * 2, acceptH, 8, C.limeBorder, 0.75);
 
-    // Acceptance Block
-    roundRect(doc, 40, y, W - 80, 60, 8);
-    doc.fill(C.dark2);
-    doc.save();
-    roundRect(doc, 40, y, W - 80, 60, 8);
-    doc.lineWidth(1).strokeColor(C.lime).opacity(0.3).stroke();
-    doc.restore();
+    const iconS = 30, iconX = PAD + 12, iconY = y + (acceptH - iconS) / 2;
+    fillRR(doc, iconX, iconY, iconS, iconS, 7, C.lime);
+    checkmark(doc, iconX + iconS / 2, iconY + iconS / 2, 7);
 
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(C.white);
-    doc.text('HOW TO ACCEPT', 55, y + 12);
-    doc.font('Helvetica').fontSize(8).fillColor(C.gray2);
-    doc.text('Please confirm your acceptance via our portal or by replying to the offer email with:', 55, y + 24);
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(C.lime);
-    doc.text('"I accept the offer and agree to the terms and conditions."', 55, y + 38);
+    const atx = iconX + iconS + 12;
+    doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C.limeDeep);
+    doc.text('HOW TO ACCEPT', atx, y + 11, { lineBreak: false, characterSpacing: 0.9 });
+    doc.font('Helvetica').fontSize(8.5).fillColor(C.muted);
+    doc.text('Confirm via the FMPG portal or reply to this offer email with:', atx, y + 22, { lineBreak: false });
+    doc.font('Helvetica').fontSize(8.5).fillColor(C.mid);
+    doc.text('"I accept the offer and agree to the terms and conditions."', atx, y + 34, { lineBreak: false });
+    y += acceptH + 20;
 
-    // Footer Section (Signatures & QR)
-    const footerStartY = H - 110;
-    const qrSize = 55;
-    
-    // QR Code for verification (Center)
-    drawQR(doc, verifyUrl, W / 2 - qrSize / 2, footerStartY, qrSize);
-    doc.font('Helvetica').fontSize(6).fillColor(C.gray2);
-    textCenter(doc, 'SCAN TO VERIFY', footerStartY + qrSize + 5);
+    // ── FOOTER SEPARATOR ────────────────────────────────────
+    doc.rect(PAD, y, W - PAD * 2, 0.5).fill(C.border);
+    y += 16;
 
-    // Left Side
-    const sigSideY = footerStartY + 15;
-    doc.font('Helvetica-Bold').fontSize(10).fillColor(C.white);
-    doc.text('Om Sharma', 40, sigSideY + 15);
-    
-    doc.save();
-    doc.lineWidth(0.8).strokeColor(C.limeDim);
-    doc.moveTo(40, sigSideY + 28).lineTo(160, sigSideY + 28).stroke();
-    doc.restore();
-    
-    doc.font('Helvetica').fontSize(8).fillColor(C.gray2);
-    doc.text('Founder & Director', 40, sigSideY + 34);
+    // ── SIGNATURES + QR ─────────────────────────────────────
+    const qrSize = 56;
 
-    // Right Side
-    doc.font('Helvetica-Bold').fontSize(10).fillColor(C.white);
-    doc.text(offerLetter.hrContactName || 'HR Team', W - 160, sigSideY + 15, { align: 'right', width: 120 });
-    
-    doc.save();
-    doc.lineWidth(0.8).strokeColor(C.limeDim);
-    doc.moveTo(W - 160, sigSideY + 28).lineTo(W - 40, sigSideY + 28).stroke();
-    doc.restore();
-    
-    doc.font('Helvetica').fontSize(8).fillColor(C.gray2);
-    doc.text('Human Resources', W - 160, sigSideY + 34, { align: 'right', width: 120 });
+    drawQR(doc, verifyUrl, W / 2 - qrSize / 2, y, qrSize);
+    doc.font('Helvetica').fontSize(6.5).fillColor(C.subtle);
+    const qrLW = doc.widthOfString('SCAN TO VERIFY', { characterSpacing: 0.7 });
+    doc.text('SCAN TO VERIFY', W / 2 - qrLW / 2, y + qrSize + 5, { lineBreak: false, characterSpacing: 0.7 });
 
-    // Final Footer Note
-    doc.font('Helvetica').fontSize(7).fillColor(C.gray2);
-    textCenter(doc, 'This is a digitally issued offer letter and is valid without a physical signature.', H - 28);
+    // Left — Founder
+    doc.font('Helvetica-Bold').fontSize(11).fillColor(C.black);
+    doc.text('Om Sharma', PAD, y + 12, { lineBreak: false });
+    doc.rect(PAD, y + 28, 110, 0.75).fill(C.border2);
+    doc.font('Helvetica').fontSize(7.5).fillColor(C.subtle);
+    doc.text('FOUNDER & DIRECTOR', PAD, y + 34, { lineBreak: false, characterSpacing: 0.5 });
+
+    // Right — HR
+    const hrName = getHrSignatoryName(offerLetter);
+    const hrNW = doc.font('Helvetica-Bold').fontSize(11).widthOfString(hrName);
+    doc.font('Helvetica-Bold').fontSize(11).fillColor(C.black);
+    doc.text(hrName, W - PAD - hrNW, y + 12, { lineBreak: false });
+    doc.rect(W - PAD - 110, y + 28, 110, 0.75).fill(C.border2);
+    doc.font('Helvetica').fontSize(7.5).fillColor(C.subtle);
+    const hrRW = doc.widthOfString('HUMAN RESOURCES', { characterSpacing: 0.5 });
+    doc.text('HUMAN RESOURCES', W - PAD - hrRW, y + 34, { lineBreak: false, characterSpacing: 0.5 });
+
+    // ── VALIDITY STRIP ───────────────────────────────────────
+    const stripY = H - 6 - 22;
+    doc.rect(0, stripY, W, 22).fill(C.bg);
+    doc.rect(0, stripY, W, 0.5).fill(C.border);
+
+    const validText = `Digitally issued · Valid without physical signature · Valid until ${fmt(offerLetter.validUntil)}`;
+    doc.font('Helvetica').fontSize(7.5).fillColor(C.subtle);
+    doc.text(validText, PAD, stripY + 7, { lineBreak: false });
+    doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C.limeDark);
+    doc.text('careers.fmpg.in', W - PAD - doc.widthOfString('careers.fmpg.in'), stripY + 7, { lineBreak: false });
 
     doc.end();
 
     return new Promise((resolve, reject) => {
-        doc.on('end', () => resolve(Buffer.concat(buffers)));
+        doc.on('end',   () => resolve(Buffer.concat(buffers)));
         doc.on('error', reject);
     });
 }

@@ -4,7 +4,7 @@ import Job from '@/lib/models/job';
 import { NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth/middleware';
 import { uploadFile } from '@/lib/config/cloudinary';
-// import recaptchaService from '@/lib/services/recaptchaService';
+import { recaptchaService } from '@/lib/services/recaptchaService';
 
 export async function POST(request) {
   try {
@@ -17,16 +17,14 @@ export async function POST(request) {
     const recaptchaToken = formData.get('recaptchaToken');
     const remoteIP = request.headers.get('x-forwarded-for') || request.ip;
     
-    /* 
-    const verification = await recaptchaService.verifyToken(recaptchaToken, remoteIP);
-    if (!verification.success) {
-      return NextResponse.json({ message: verification.error || 'reCAPTCHA verification failed' }, { status: 400 });
+    // Verify reCAPTCHA
+    const recaptchaVerification = await recaptchaService.verifyToken(recaptchaToken, remoteIP);
+    if (!recaptchaVerification.success) {
+      return NextResponse.json({ 
+        message: recaptchaVerification.error || 'reCAPTCHA verification failed' 
+      }, { status: 400 });
     }
-    */
-    // Manually verify the "human acknowledge" token from the frontend
-    if (recaptchaToken !== 'verified-manually') {
-       // Allow for now but log if needed
-    }
+
     const jobId = formData.get('jobId');
     const fullName = formData.get('fullName');
     const email = formData.get('email');
@@ -36,7 +34,15 @@ export async function POST(request) {
     const skills = formData.get('skills');
     const coverLetter = formData.get('coverLetter');
     const resume = formData.get('resume');
+    const coverLetterFile = formData.get('coverLetterFile');
     const questionAnswersRaw = formData.get('questionAnswers');
+
+    // Referral fields
+    const isReferred = formData.get('isReferred') === 'true';
+    const referrerEmployeeId = formData.get('referrerEmployeeId');
+    const referrerName = formData.get('referrerName');
+    const referrerEmail = formData.get('referrerEmail');
+    const referralMessage = formData.get('referralMessage');
 
     let questionAnswers = [];
     if (questionAnswersRaw) {
@@ -51,6 +57,15 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
 
+    // Phone validation
+    if (!phone) {
+      return NextResponse.json({ message: 'Phone number is required' }, { status: 400 });
+    }
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      return NextResponse.json({ message: 'Invalid phone number format' }, { status: 400 });
+    }
+
     // Check for existing application
     const existing = await Application.findOne({
       userId: user.userId,
@@ -62,6 +77,7 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Already applied for this position' }, { status: 400 });
     }
 
+    // Handle resume upload
     let resumeData = {};
     if (resume && resume.size > 0) {
       try {
@@ -73,8 +89,23 @@ export async function POST(request) {
         };
       } catch (uploadError) {
         console.error('Resume upload failed:', uploadError);
-        // We can choose to continue without resume or fail
         return NextResponse.json({ message: 'Resume upload failed' }, { status: 500 });
+      }
+    }
+
+    // Handle cover letter upload
+    let coverLetterData = {};
+    if (coverLetterFile && coverLetterFile.size > 0) {
+      try {
+        const buffer = Buffer.from(await coverLetterFile.arrayBuffer());
+        const uploadResult = await uploadFile(buffer, 'cover-letters', 'raw', coverLetterFile.name);
+        coverLetterData = {
+          coverLetterUrl: uploadResult.secure_url,
+          coverLetterPublicId: uploadResult.public_id
+        };
+      } catch (uploadError) {
+        console.error('Cover letter upload failed:', uploadError);
+        return NextResponse.json({ message: 'Cover letter upload failed' }, { status: 500 });
       }
     }
 
@@ -83,13 +114,19 @@ export async function POST(request) {
       userId: user.userId,
       fullName,
       email,
-      phone,
+      phone: cleanPhone,
       experience,
       education,
-      skills: typeof skills === 'string' ? skills.split(',').map(s => s.trim()).filter(s => s) : skills,
+      skills: typeof skills === 'string' ? skills.split(',').map(s => s.trim()).filter(s => s) : (Array.isArray(skills) ? skills : []),
       coverLetter,
       questionAnswers,
-      ...resumeData
+      isReferred,
+      referrerEmployeeId,
+      referrerName,
+      referrerEmail,
+      referralMessage,
+      ...resumeData,
+      ...coverLetterData
     });
 
     await application.save();

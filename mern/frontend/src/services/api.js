@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { isTokenExpired } from '../utils/tokenUtils';
 
-const API_URL = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:3000' : '')).replace(/\/+$/, '');
+const API_URL = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:4001' : '')).replace(/\/+$/, '');
 const buildApiUrl = (endpoint) => `${API_URL}${endpoint}`;
 
 const api = axios.create({
@@ -419,6 +419,7 @@ export const offerLetterService = {
   // Alternative endpoints from dedicated offer letter routes
   getAllOfferLettersAlt: () => api.get('/api/offer-letters'),
   updateOfferLetterStatus: (id, status) => api.patch(`/api/certification/offer-letters/${id}/status`, { status }),
+  verifyOfferLetter: (id) => api.get(`/api/certification/verify-offer/${encodeURIComponent(String(id).trim())}`),
   extendOfferLetter: (id, extensionData) => api.patch(`/api/certification/offer-letters/${id}/extend`, extensionData),
   sendOfferLetterEmail: (id, emailData) => api.post(`/api/certification/offer-letters/${id}/send-email`, emailData),
   

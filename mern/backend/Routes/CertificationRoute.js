@@ -19,6 +19,7 @@ router.post("/issue-offer", auth, hasPermission('canGenerateOfferLetter'), Offer
 router.post("/bulk-issue-offer", auth, hasPermission('canGenerateOfferLetter'), upload.single('file'), OfferLetterController.bulkIssueOfferLetters);
 router.get("/bulk-sample-csv", auth, hasPermission('canGenerateOfferLetter'), OfferLetterController.downloadOfferSampleCSV);
 router.get("/offer-letters", auth, isHR, OfferLetterController.getAllOfferLetters);
+router.get("/verify-offer/:id", OfferLetterController.verifyOfferLetter);
 router.get("/offer-letters/:id", auth, isHR, OfferLetterController.getOfferLetterById);
 router.patch("/offer-letters/:id/status", auth, isHR, OfferLetterController.updateOfferLetterStatus);
 router.patch("/offer-letters/:id/extend", auth, hasPermission('canGenerateOfferLetter'), OfferLetterController.extendOfferLetter);

@@ -165,7 +165,7 @@ export default function MyApplicationsPage() {
                 {/* Modal Content */}
                 <div className="space-y-12">
                   {/* Status Bar */}
-                  <div className="bg-gray-50 p-8 rounded-[2.5rem] flex items-center justify-between">
+                  <div className="bg-gray-50 p-8 rounded-[2.5rem] flex items-center justify-between flex-wrap gap-6">
                     <div className="flex items-center gap-6">
                       <div className={`${getStatusConfig(selectedApp.status).bg} p-4 rounded-2xl`}>
                         <Clock className={`w-6 h-6 ${getStatusConfig(selectedApp.status).color}`} />
@@ -175,15 +175,26 @@ export default function MyApplicationsPage() {
                         <p className="text-xl font-black uppercase tracking-tight">{getStatusConfig(selectedApp.status).label}</p>
                       </div>
                     </div>
-                    {selectedApp.resumeUrl && (
-                      <Link 
-                        href={selectedApp.resumeUrl} 
-                        target="_blank"
-                        className="px-8 py-4 bg-white border border-gray-100 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center gap-3 hover:border-lime-500 transition-all shadow-sm"
-                      >
-                        <FileDown className="w-4 h-4" /> Download Resume
-                      </Link>
-                    )}
+                    <div className="flex gap-4">
+                      {selectedApp.resumeUrl && (
+                        <Link 
+                          href={selectedApp.resumeUrl} 
+                          target="_blank"
+                          className="px-6 py-3 bg-white border border-gray-100 rounded-xl font-black uppercase tracking-widest text-[9px] flex items-center gap-3 hover:border-lime-500 transition-all shadow-sm"
+                        >
+                          <FileDown className="w-4 h-4" /> Resume
+                        </Link>
+                      )}
+                      {selectedApp.coverLetterUrl && (
+                        <Link 
+                          href={selectedApp.coverLetterUrl} 
+                          target="_blank"
+                          className="px-6 py-3 bg-black text-white rounded-xl font-black uppercase tracking-widest text-[9px] flex items-center gap-3 hover:text-lime-400 transition-all shadow-sm"
+                        >
+                          <FileText className="w-4 h-4 text-lime-400" /> Cover Letter
+                        </Link>
+                      )}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
@@ -232,7 +243,7 @@ export default function MyApplicationsPage() {
                           <GraduationCap className="w-4 h-4 text-lime-500" />
                           <h4 className="text-[10px] font-black uppercase tracking-widest">Academic History</h4>
                         </div>
-                        <div className="p-8 bg-gray-50/50 rounded-[2rem] border border-gray-50 italic text-sm text-gray-500 whitespace-pre-wrap leading-relaxed">
+                        <div className="p-8 bg-gray-50/50 rounded-[2rem] border border-gray-50 text-sm text-gray-500 whitespace-pre-wrap leading-relaxed">
                           {selectedApp.education || 'Academic records not specified.'}
                         </div>
                       </section>
@@ -242,7 +253,7 @@ export default function MyApplicationsPage() {
                           <Briefcase className="w-4 h-4 text-lime-500" />
                           <h4 className="text-[10px] font-black uppercase tracking-widest">Professional Experience</h4>
                         </div>
-                        <div className="p-8 bg-gray-50/50 rounded-[2rem] border border-gray-50 italic text-sm text-gray-500 whitespace-pre-wrap leading-relaxed">
+                        <div className="p-8 bg-gray-50/50 rounded-[2rem] border border-gray-50 text-sm text-gray-500 whitespace-pre-wrap leading-relaxed">
                           {selectedApp.experience || 'Professional history not specified.'}
                         </div>
                       </section>
@@ -253,10 +264,10 @@ export default function MyApplicationsPage() {
                   <section>
                     <div className="flex items-center gap-3 mb-6">
                       <FileText className="w-4 h-4 text-lime-500" />
-                      <h4 className="text-[10px] font-black uppercase tracking-widest">Transmission Statement (Cover Letter)</h4>
+                      <h4 className="text-[10px] font-black uppercase tracking-widest">Transmission Statement (Manual Cover Letter)</h4>
                     </div>
                     <div className="p-10 bg-gray-50/50 rounded-[2.5rem] border border-gray-50 text-sm text-gray-600 leading-relaxed">
-                      {selectedApp.coverLetter || 'No cover statement provided with this transmission.'}
+                      {selectedApp.coverLetter || 'No manual cover statement provided with this transmission.'}
                     </div>
                   </section>
 
@@ -271,7 +282,7 @@ export default function MyApplicationsPage() {
                         {selectedApp.questionAnswers.map((qa, i) => (
                           <div key={i} className="p-8 bg-gray-50/50 rounded-[2rem] border border-gray-50">
                             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">Q: {qa.questionText}</p>
-                            <p className="text-sm font-bold">
+                            <div className="text-sm font-bold">
                               {qa.questionType === 'file' ? (
                                 <Link href={qa.fileUrl} target="_blank" className="text-lime-500 hover:underline flex items-center gap-2">
                                   <Download className="w-3 h-3" /> View Submitted Document
@@ -279,7 +290,7 @@ export default function MyApplicationsPage() {
                               ) : (
                                 Array.isArray(qa.answer) ? qa.answer.join(', ') : qa.answer || 'No response recorded.'
                               )}
-                            </p>
+                            </div>
                           </div>
                         ))}
                       </div>

@@ -18,15 +18,13 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="bg-[#fcfcfc] text-[#0a0a0a] font-sans antialiased">
-        {/* <AuthProvider> */}
-          {/* <Suspense fallback={null}> */}
-            {/* <Navbar /> */}
-          {/* </Suspense> */}
+        <AuthProvider>
+          <Navbar />
           <main className="min-h-screen">
             {children}
           </main>
-          {/* <ToastProvider /> */}
-        {/* </AuthProvider> */}
+          <ToastProvider />
+        </AuthProvider>
       </body>
     </html>
   );

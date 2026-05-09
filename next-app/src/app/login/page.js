@@ -28,7 +28,15 @@ export default function Login() {
         router.push('/');
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid login credentials');
+      console.error('Login error details:', err.response?.data);
+      
+      // Handle unverified user
+      if (err.response?.status === 403 && err.response?.data?.requiresVerification) {
+        toast.warning('Email verification required. Redirecting...');
+        router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
+      } else {
+        toast.error(err.response?.data?.message || 'Invalid login credentials');
+      }
     } finally {
       setLoading(false);
     }
@@ -71,6 +79,12 @@ export default function Login() {
                 required
                 placeholder="••••••••"
               />
+            </div>
+            
+            <div className="flex justify-end -mt-6">
+              <Link href="/forgot-password" size="sm" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-lime-500 transition-colors">
+                Forgot Password?
+              </Link>
             </div>
             
             <button 

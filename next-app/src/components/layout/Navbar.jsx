@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function Navbar() {
+function NavbarContent() {
   const { currentUser, logout, isAdmin, isSuperAdmin, isHR, isEmployee, hasDashboardAccess } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -334,3 +334,23 @@ export default function Navbar() {
     </>
   );
 }
+
+import { Suspense } from 'react';
+
+export default function Navbar() {
+  return (
+    <Suspense fallback={
+      <nav className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-2xl border-b border-gray-100 py-4 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+             <div className="w-12 h-12 bg-gray-100 rounded-2xl animate-pulse" />
+             <div className="w-24 h-4 bg-gray-100 rounded animate-pulse" />
+          </div>
+        </div>
+      </nav>
+    }>
+      <NavbarContent />
+    </Suspense>
+  );
+}
+

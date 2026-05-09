@@ -68,11 +68,17 @@ const Footer = () => {
               >
                 Verify Certificate
               </a>
+              <a 
+                href="/verify-offer" 
+                className="block text-lg font-light hover:text-lime-400 transition-colors duration-300"
+              >
+                Verify Offer Letter
+              </a>
             </div>
           </div>
           </div>
 
-          {/* Contact Info & Services Section */}
+          {/* Contact Info Section */}
           <div className="lg:col-span-1 space-y-12">
             {/* Contact Info */}
             <div>
@@ -92,39 +98,6 @@ const Footer = () => {
                 >
                   <span className="hidden sm:inline">fmpg974@gmail.com</span>
                   <span className="sm:hidden">Email Us</span>
-                </a>
-              </div>
-            </div>
-
-            {/* Services */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-6">
-                SERVICES
-              </h3>
-              <div className="space-y-4 flex flex-col">
-                <a 
-                  href='https://fmpg.vercel.app/destination' 
-                  className="text-lg font-light hover:text-lime-400 transition-colors duration-300"
-                >
-                  Single Room PG
-                </a>
-                <a 
-                  href='https://fmpg.vercel.app/fooding' 
-                  className="text-lg font-light hover:text-lime-400 transition-colors duration-300"
-                >
-                  Double Room PG
-                </a>
-                <a 
-                  href='https://fmpg.vercel.app/destination' 
-                  className="text-lg font-light hover:text-lime-400 transition-colors duration-300"
-                >
-                  Flat Booking
-                </a>
-                <a 
-                  href='https://fmpg.vercel.app/service' 
-                  className="text-lg font-light hover:text-lime-400 transition-colors duration-300"
-                >
-                  Hostel Services
                 </a>
               </div>
             </div>

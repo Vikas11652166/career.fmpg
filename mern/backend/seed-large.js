@@ -142,7 +142,7 @@ const seedDatabase = async () => {
       const dept = faker.helpers.arrayElement(departments);
       const pos = faker.helpers.arrayElement(positions);
       jobsData.push({
-        title: `${faker.person.jobArea()} ${pos}`,
+        title: `${faker.person.jobArea()} ${pos} ${i + 1}`,
         company: 'FMPG',
         description: faker.lorem.paragraphs(2),
         requirements: Array.from({ length: 4 }, () => faker.lorem.sentence()),

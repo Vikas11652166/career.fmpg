@@ -50,24 +50,34 @@ class ResumeParserService {
    */
   async parseResume(fileBuffer, mimeType, originalName) {
     try {
-      console.log(`Starting resume parsing for file: ${originalName}`);
+      console.log(`Starting resume parsing for file: ${originalName} (${fileBuffer.length} bytes)`);
       
       let rawText = '';
       const fileExtension = path.extname(originalName).toLowerCase();
 
       // Extract text based on file type
-      if (fileExtension === '.pdf' || mimeType === 'application/pdf') {
-        rawText = await this.extractTextFromPDF(fileBuffer);
-      } else if (['.doc', '.docx'].includes(fileExtension) || 
-                 mimeType.includes('application/msword') || 
-                 mimeType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
-        rawText = await this.extractTextFromDOCX(fileBuffer);
-      } else {
-        throw new Error(`Unsupported file format: ${fileExtension}`);
+      try {
+        if (fileExtension === '.pdf' || mimeType === 'application/pdf') {
+          rawText = await this.extractTextFromPDF(fileBuffer);
+        } else if (['.doc', '.docx'].includes(fileExtension) || 
+                   mimeType.includes('application/msword') || 
+                   mimeType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+          rawText = await this.extractTextFromDOCX(fileBuffer);
+        } else {
+          console.warn(`Unsupported file format: ${fileExtension}`);
+        }
+      } catch (extractionError) {
+        console.error('Text extraction failed:', extractionError);
       }
 
       if (!rawText || rawText.trim().length === 0) {
-        throw new Error('Could not extract text from the resume file');
+        console.warn('Could not extract text from the resume file. Returning empty profile.');
+        return {
+          success: true, 
+          warning: 'Text extraction failed or file is empty',
+          data: this.getDefaultParsedData(),
+          rawText: ''
+        };
       }
 
       console.log(`Extracted text length: ${rawText.length} characters`);
@@ -78,36 +88,52 @@ class ResumeParserService {
       return {
         success: true,
         data: parsedData,
-        rawText: rawText.substring(0, 1000) // First 1000 chars for debugging
+        rawText: rawText.substring(0, 1000)
       };
 
     } catch (error) {
-      console.error('Resume parsing error:', error);
+      console.error('Critical resume parsing error:', error);
       return {
         success: false,
         error: error.message,
-        data: null
+        data: this.getDefaultParsedData()
       };
     }
+  }
+
+  getDefaultParsedData() {
+    return {
+      personalInfo: { name: '', email: '', phone: '', location: '' },
+      phoneNumber: '',
+      education: [],
+      experience: [],
+      skills: [],
+      projects: [],
+      yearsOfExperience: 0,
+      educationText: '',
+      experienceText: '',
+      skillsText: '',
+      projectsText: ''
+    };
   }
 
   async extractTextFromPDF(buffer) {
     try {
       const data = await pdfParse(buffer);
-      return data.text;
+      return data.text || '';
     } catch (error) {
       console.error('PDF extraction error:', error);
-      throw new Error('Failed to extract text from PDF file');
+      return '';
     }
   }
 
   async extractTextFromDOCX(buffer) {
     try {
       const result = await mammoth.extractRawText({ buffer });
-      return result.value;
+      return result.value || '';
     } catch (error) {
       console.error('DOCX extraction error:', error);
-      throw new Error('Failed to extract text from DOCX file');
+      return '';
     }
   }
 
@@ -250,25 +276,21 @@ class ResumeParserService {
       const line = lines[i].trim();
       const lowerLine = line.toLowerCase();
       
-      if (sections.education.start === -1 && (lowerLine === 'education' || lowerLine === 'academic' || line.match(/^EDUCATION$/i))) {
+      if (sections.education.start === -1 && this.sectionHeaders.education.some(h => lowerLine.includes(h))) {
         sections.education.start = i;
         sectionStarts.push({ type: 'education', index: i });
       }
-      if (sections.experience.start === -1 && (lowerLine === 'experience' || lowerLine === 'work experience' || line.match(/^EXPERIENCE$/i))) {
+      if (sections.experience.start === -1 && this.sectionHeaders.experience.some(h => lowerLine.includes(h))) {
         sections.experience.start = i;
         sectionStarts.push({ type: 'experience', index: i });
       }
-      if (sections.skills.start === -1 && (lowerLine === 'skills' || lowerLine === 'technical skills' || line.match(/^SKILLS$/i))) {
+      if (sections.skills.start === -1 && this.sectionHeaders.skills.some(h => lowerLine.includes(h))) {
         sections.skills.start = i;
         sectionStarts.push({ type: 'skills', index: i });
       }
-      if (sections.projects.start === -1 && (lowerLine === 'projects' || lowerLine === 'personal projects' || line.match(/^PROJECTS$/i))) {
+      if (sections.projects.start === -1 && this.sectionHeaders.projects.some(h => lowerLine.includes(h))) {
         sections.projects.start = i;
         sectionStarts.push({ type: 'projects', index: i });
-      }
-      if (sections.certifications.start === -1 && (lowerLine === 'certifications' || lowerLine === 'certificates' || line.match(/^CERTIFICATIONS$/i))) {
-        sections.certifications.start = i;
-        sectionStarts.push({ type: 'certifications', index: i });
       }
     }
 
@@ -347,13 +369,22 @@ class ResumeParserService {
   extractSkills(sections, lines, fullText) {
     const skills = new Set();
     const technicalSkills = [
-      'javascript', 'typescript', 'python', 'java', 'react', 'angular', 'vue', 'next.js', 'node.js', 'express', 'mongodb', 'mysql', 'postgresql', 'aws', 'docker', 'kubernetes', 'git'
+      'javascript', 'typescript', 'python', 'java', 'react', 'angular', 'vue', 'next.js', 'node.js', 'express', 'mongodb', 'mysql', 'postgresql', 'aws', 'docker', 'kubernetes', 'git', 'html', 'css', 'tailwind', 'bootstrap', 'redux', 'graphql', 'rest api'
     ];
     const lowerText = fullText.toLowerCase();
     for (const skill of technicalSkills) {
       const skillRegex = new RegExp(`\\b${skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
       if (skillRegex.test(lowerText)) skills.add(skill);
     }
+    
+    if (sections.skills.start !== -1) {
+        const skillsText = lines.slice(sections.skills.start + 1, sections.skills.end + 1).join(', ');
+        const potentialSkills = skillsText.split(/[,|•]/).map(s => s.trim()).filter(s => s.length > 1 && s.length < 30);
+        potentialSkills.forEach(s => {
+            if (s.length > 2) skills.add(s);
+        });
+    }
+
     return Array.from(skills).slice(0, 50);
   }
 

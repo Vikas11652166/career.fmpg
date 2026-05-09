@@ -71,7 +71,7 @@ export default function Home() {
                <div className="relative aspect-square">
                   <div className="absolute inset-0 bg-lime-400 rounded-[5rem] rotate-3 opacity-10"></div>
                   <div className="relative h-full w-full rounded-[4rem] overflow-hidden shadow-2xl border-4 border-white">
-                    <img src="/images/welcome.jpg" alt="Welcome" className="w-full h-full object-cover" />
+                    <img src="/images/team-collaboration.jpg" alt="FMPG Team Collaboration" className="w-full h-full object-cover" />
                   </div>
                </div>
             </motion.div>
@@ -117,7 +117,7 @@ export default function Home() {
               viewport={{ once: true }}
             >
                <div className="rounded-[4rem] overflow-hidden shadow-2xl border-4 border-white aspect-video relative">
-                  <img src="/images/s_image_text.svg" alt="Work from home" className="w-full h-full object-cover" />
+                  <img src="/images/team-meeting.jpg" alt="Team meeting at FMPG" className="w-full h-full object-cover" />
                </div>
             </motion.div>
           </div>
@@ -170,7 +170,7 @@ export default function Home() {
             </motion.div>
             <motion.div className="w-full lg:w-1/2">
                <div className="rounded-[4rem] overflow-hidden shadow-2xl border-4 border-white aspect-square">
-                  <img src="/images/policies.jpg" alt="Policies" className="w-full h-full object-cover" />
+                  <img src="/images/team-workspace.jpg" alt="FMPG Modern Workspace" className="w-full h-full object-cover" />
                </div>
             </motion.div>
           </div>

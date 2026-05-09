@@ -443,14 +443,14 @@ const seedDatabase = async () => {
     const hashedUsers = await Promise.all(
       users.map(async (user) => {
         const hashedPassword = await bcrypt.hash(user.password, 10);
-        return { ...user, password: hashedPassword };
+        return { ...user, password: hashedPassword, isEmailVerified: true };
       })
     );
     const createdUsers = await User.insertMany(hashedUsers);
     console.log(`👤 Created ${createdUsers.length} users`);
 
     // Create jobs with admin user as poster
-    const adminUser = createdUsers.find(user => user.role === 'admin');
+    const adminUser = createdUsers.find(user => user.role === 'admin' || user.role === 'super-admin');
     const jobsWithPostedBy = jobs.map(job => ({
       ...job,
       postedBy: adminUser._id

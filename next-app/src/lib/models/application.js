@@ -48,11 +48,21 @@ const applicationSchema = new mongoose.Schema({
   education: String,
   skills: [String],
   coverLetter: String,
+  coverLetterUrl: { type: String },
+  coverLetterPublicId: { type: String },
+  
+  // Referral fields (Matching MERN)
   isReferred: { type: Boolean, default: false },
+  referrerEmployeeId: { type: String },
+  referrerName: { type: String },
+  referrerEmail: { type: String },
+  referralMessage: { type: String },
+  
   recommendationId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Recommendation"
   },
+  
   questionAnswers: [{
     questionId: { type: mongoose.Schema.Types.ObjectId },
     questionText: { type: String },

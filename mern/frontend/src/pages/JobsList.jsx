@@ -33,7 +33,7 @@ const Jobs = () => {
 
   const enrichJobsWithApplicationStatus = async (jobsList) => {
     if (!currentUser || currentUser.role !== 'user' || !Array.isArray(jobsList) || jobsList.length === 0) {
-      return jobsList;
+      return Array.isArray(jobsList) ? jobsList : [];
     }
 
     try {
@@ -284,7 +284,8 @@ const Jobs = () => {
     navigate(`/jobs/edit/${identifier}?tab=applications`);
   };
 
-  const filteredJobs = jobs.filter(job =>
+  const safeJobs = Array.isArray(jobs) ? jobs : [];
+  const filteredJobs = safeJobs.filter(job =>
     (job.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
     (job.company?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
     (job.location?.toLowerCase() || '').includes(searchTerm.toLowerCase())
@@ -307,7 +308,7 @@ const Jobs = () => {
     return 0;
   });
 
-  const jobTypes = [...new Set(jobs.map(job => job.type))];
+  const jobTypes = [...new Set(safeJobs.map(job => job.type))];
 
   // Check if a job was posted within the last 7 days
   const isNewJob = (createdAt) => {
@@ -391,7 +392,7 @@ const Jobs = () => {
                 onChange={(e) => setFilterType(e.target.value)}
               >
                 <option value="">All Types</option>
-                {[...new Set(jobs.map(job => job.type))].map(type => (
+                {[...new Set(safeJobs.map(job => job.type))].map(type => (
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
@@ -787,7 +788,7 @@ const Jobs = () => {
                   >
                     All Types
                   </button>
-                  {[...new Set(jobs.map(job => job.type))].map(type => (
+                  {[...new Set(safeJobs.map(job => job.type))].map(type => (
                     <button
                       key={type}
                       onClick={() => setFilterType(type)}

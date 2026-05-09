@@ -27,8 +27,8 @@ export default function Register() {
     setLoading(true);
     try {
       await authService.register(formData);
-      toast.success('Registration successful! Please login.');
-      router.push('/login');
+      toast.success('Registration successful! Please verify your email.');
+      router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registration failed');
     } finally {

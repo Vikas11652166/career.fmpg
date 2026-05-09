@@ -6,11 +6,12 @@ import { authService } from '@/services/api';
 import { toast } from 'react-toastify';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Mail, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Mail, ArrowRight, RefreshCw } from 'lucide-react';
 
 function VerifyEmailContent() {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
@@ -28,6 +29,20 @@ function VerifyEmailContent() {
       toast.error(err.response?.data?.message || 'Verification failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    if (!email) return toast.error('Email context missing');
+    
+    setResending(true);
+    try {
+      await authService.resendVerificationOTP({ email });
+      toast.success('New transmission code dispatched');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Resend failed');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -78,8 +93,13 @@ function VerifyEmailContent() {
             </form>
 
             <div className="mt-12 pt-8 border-t border-gray-50 flex flex-col gap-4">
-               <button className="text-[10px] font-black uppercase tracking-widest text-lime-500 hover:text-lime-600 transition-colors">
-                Resend Validation Code
+               <button 
+                onClick={handleResendOTP}
+                disabled={resending}
+                className="text-[10px] font-black uppercase tracking-widest text-lime-500 hover:text-lime-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+               >
+                {resending ? <RefreshCw className="w-3 h-3 animate-spin" /> : null}
+                {resending ? 'Dispatched...' : 'Resend Validation Code'}
                </button>
               <Link href="/login" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-black transition-colors">
                 Return to Login
