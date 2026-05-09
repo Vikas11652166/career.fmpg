@@ -43,8 +43,18 @@ export function AuthProvider({ children }) {
     setCurrentUser(null);
   };
 
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super-admin';
-  const isHR = currentUser?.department?.toUpperCase() === 'HR' || isAdmin;
+  const isSuperAdmin = currentUser?.role === 'super-admin';
+  const isAdmin = currentUser?.role === 'admin' || isSuperAdmin;
+  const isEmployee = currentUser?.role === 'employee';
+  const isUser = currentUser?.role === 'user';
+  
+  // HR is defined as anyone in the HR department or an admin
+  const isHR = currentUser?.department?.toUpperCase() === 'HR' || 
+               currentUser?.department === 'General Management/Administration' || 
+               isAdmin;
+
+  // Dashboard access is for admins OR HR with explicit permission
+  const hasDashboardAccess = isAdmin || (isHR && currentUser?.permissions?.canAccessDashboard);
 
   const value = {
     currentUser,
@@ -52,7 +62,11 @@ export function AuthProvider({ children }) {
     logout,
     loading,
     isAdmin,
-    isHR
+    isSuperAdmin,
+    isHR,
+    isEmployee,
+    isUser,
+    hasDashboardAccess
   };
 
   return (

@@ -133,6 +133,18 @@ export default function CreateJobPage() {
                   <option value="Internship">INTERNSHIP</option>
                 </select>
               </div>
+
+              <div className="relative group">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 absolute -top-3 left-6 bg-white px-2 z-10">Compensation Range</label>
+                <input
+                  type="text"
+                  name="salary"
+                  className="w-full px-8 py-5 bg-transparent border-2 border-gray-100 rounded-3xl outline-none focus:border-lime-500 transition-all font-bold text-gray-800"
+                  value={formData.salary}
+                  onChange={handleChange}
+                  placeholder="E.G. ₹10L - ₹15L PER ANNUM"
+                />
+              </div>
             </div>
           </div>
 

@@ -136,7 +136,7 @@ export const authService = {
 
 // Job services
 export const jobService = {
-  getAllJobs: () => api.get('/api/jobs'),
+  getAllJobs: (isAdmin = false) => api.get(`/api/jobs${isAdmin ? '?admin=true' : ''}`),
   getJobById: (id) => api.get(`/api/jobs/${id}`),
   createJob: (jobData, onUploadProgress = null) => {
     // Check if jobData contains an image file
@@ -222,10 +222,13 @@ export const jobService = {
 // Application services
 export const applicationService = {
   getDashboardStats: (dateRange = 'all') => api.get(`/api/applications/dashboard/stats?dateRange=${dateRange}`),
-  getAllApplications: () => api.get('/api/applications'),
+  getAllApplications: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return api.get(`/api/applications${query ? `?${query}` : ''}`);
+  },
   getMyApplications: () => api.get('/api/applications/my'),
   getApplicationsForRecommendation: () => api.get('/api/applications/for-recommendation'),
-  getApplicationById: (id) => api.get(`/api/applications/${id}/detail`),
+  getApplicationById: (id) => api.get(`/api/applications/${id}`),
   getResumeAccessUrl: (id) => api.get(`/api/applications/${id}/resume-access`),
   checkApplicationStatus: (jobId) => api.get(`/api/applications/check-status/${jobId}`),
   checkMultipleApplicationStatuses: (jobIds = []) => {
@@ -241,11 +244,11 @@ export const applicationService = {
       onUploadProgress: onUploadProgress
     });
   },
-  updateApplication: (id, applicationData) => api.put(`/api/applications/${id}`, applicationData),
+  updateApplication: (id, applicationData) => api.patch(`/api/applications/${id}`, applicationData),
   deleteApplication: (id) => api.delete(`/api/applications/${id}`),
   
   // Application status management
-  updateApplicationStatus: (id, statusData) => api.put(`/api/applications/${id}/status`, statusData),
+  updateApplicationStatus: (id, status) => api.patch(`/api/applications/${id}`, { status }),
   generateOfferLetter: (applicationId, offerDetails) => api.post(`/api/applications/${applicationId}/offer`, offerDetails),
   getApplicationOfferLetter: (applicationId) => api.get(`/api/applications/my/${applicationId}/offer-letter`),
   rejectApplication: (applicationId, rejectionData) => api.post(`/api/applications/${applicationId}/reject`, rejectionData),
@@ -601,7 +604,7 @@ export const userService = {
 // HR management service (Super Admin only)
 export const hrService = {
   getAllHRs: () => api.get('/api/hr'),
-  updateHRPermissions: (hrId, data) => api.put(`/api/hr/${hrId}/permissions`, data),
+  updateHRPermissions: (hrId, data) => api.put(`/api/hr/${hrId}`, data),
   createHR: (data) => api.post('/api/hr', data),
   getAuditLogs: () => api.get('/api/hr/audit-logs'),
   getAvailableJobs: () => api.get('/api/hr/jobs'),
@@ -613,17 +616,17 @@ export const recommendationService = {
   // Employee endpoints
   createRecommendation: (recommendationData) => api.post('/api/recommendations', recommendationData),
   getMyRecommendations: (params = {}) => {
-    const queryString = new URLSearchParams(params).toString();
-    return api.get(`/api/recommendations/my-recommendations?${queryString}`);
+    const queryString = new URLSearchParams({ ...params, type: 'mine' }).toString();
+    return api.get(`/api/recommendations?${queryString}`);
   },
   deleteRecommendation: (id) => api.delete(`/api/recommendations/${id}`),
   
   // Admin endpoints
   getAllRecommendations: (params = {}) => {
-    const queryString = new URLSearchParams(params).toString();
-    return api.get(`/api/recommendations/all?${queryString}`);
+    const queryString = new URLSearchParams({ ...params, type: 'all' }).toString();
+    return api.get(`/api/recommendations?${queryString}`);
   },
-  updateRecommendationStatus: (id, data) => api.put(`/api/recommendations/${id}/status`, data),
+  updateRecommendationStatus: (id, data) => api.put(`/api/recommendations/${id}`, data),
   
   // Statistics
   getRecommendationStats: () => api.get('/api/recommendations/stats'),

@@ -99,7 +99,7 @@ export default function VerifyCertificatePage() {
                      <div className="space-y-8">
                         <div>
                            <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-2">RECIPIENT</p>
-                           <p className="text-xl font-black uppercase">{certificate.candidateName}</p>
+                           <p className="text-xl font-black uppercase">{certificate.name || certificate.candidateName}</p>
                         </div>
                         <div>
                            <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-2">DOMAIN</p>
@@ -119,7 +119,13 @@ export default function VerifyCertificatePage() {
                   </div>
 
                   <div className="flex justify-between items-center">
-                     <button className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-lime-500 hover:gap-6 transition-all">
+                     <button 
+                       onClick={async () => {
+                         const { generateCertificatePDF } = await import('@/utils/pdfGenerator');
+                         toast.info('Generating PDF...');
+                         await generateCertificatePDF(certificate);
+                       }}
+                       className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-lime-500 hover:gap-6 transition-all">
                         <Download className="w-4 h-4" /> Download Official Copy
                      </button>
                      <span className="text-[8px] font-bold text-gray-300 uppercase tracking-widest">FMPG TRUSTED SYSTEM SECURED</span>

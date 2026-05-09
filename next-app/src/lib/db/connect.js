@@ -19,12 +19,23 @@ async function connectDB() {
 
   if (!cached.promise) {
     const opts = {
-      bufferCommands: false,
+      bufferCommands: true, // Changed to true to allow buffering while connecting
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+      socketTimeoutMS: 45000,
     };
 
+    console.log('⏳ Connecting to MongoDB...');
+    const start = Date.now();
+    
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      console.log('✅ MongoDB Connected (Unified Full-Stack)');
+      const end = Date.now();
+      console.log(`✅ MongoDB Connected in ${end - start}ms (Unified Full-Stack)`);
       return mongoose;
+    }).catch(err => {
+      console.error('❌ MongoDB Connection Error:', err);
+      cached.promise = null;
+      throw err;
     });
   }
 

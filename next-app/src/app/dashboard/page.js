@@ -15,16 +15,16 @@ export default function Dashboard() {
     certificatesIssued: 0,
     offersGenerated: 0
   });
-  const { currentUser, isAdmin, isHR } = useAuth();
+  const { currentUser, hasDashboardAccess } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!currentUser || (!isAdmin && !isHR)) {
+    if (!currentUser || !hasDashboardAccess) {
       router.push('/login');
       return;
     }
     loadDashboard();
-  }, [currentUser, isAdmin, isHR, router]);
+  }, [currentUser, hasDashboardAccess, router]);
 
   const loadDashboard = async () => {
     try {
@@ -82,6 +82,7 @@ export default function Dashboard() {
               { title: 'User Directory', desc: 'Manage system-wide user identities.', path: '/admin/users' },
               { title: 'Staff Registry', desc: 'Manage active employee records.', path: '/admin/employees' },
               { title: 'Certification Registry', desc: 'Issue and verify credentials.', path: '/admin/certificates' },
+              { title: 'Feedback Moderation', desc: 'Sanction or suppress community reviews.', path: '/admin/reviews' },
               { title: 'Operational Telemetry', desc: 'View system-wide audit logs.', path: '/admin/audit-logs' },
               { title: 'HR Governance', desc: 'Manage organizational permissions.', path: '/admin/manage-hr' }
             ].map((action, i) => (

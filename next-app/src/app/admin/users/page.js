@@ -9,7 +9,7 @@ import { Search, Filter, Eye, Trash2, Mail, Phone, Calendar, CheckCircle, Ban, U
 import Link from 'next/link';
 
 export default function UserManagementPage() {
-  const { currentUser, isAdmin, isHR } = useAuth();
+  const { currentUser, isAdmin } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,12 +55,12 @@ export default function UserManagementPage() {
   }, [currentPage, searchTerm, filterStatus]);
 
   useEffect(() => {
-    if (!currentUser || (!isAdmin && !isHR)) {
+    if (!currentUser || !isAdmin) {
       router.push('/login');
       return;
     }
     fetchUsers();
-  }, [fetchUsers, currentUser, isAdmin, isHR, router]);
+  }, [fetchUsers, currentUser, isAdmin, router]);
 
   const handleUpdateStatus = async (status) => {
     try {

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 const offerLetterSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   applicationId: { type: mongoose.Schema.Types.ObjectId, ref: "Application" }, // Link to application
+  offerLetterId: { type: String, unique: true }, // Unique identification
   candidateName: { type: String, required: true },
   email: { type: String, required: true },
   position: { type: String, required: true },

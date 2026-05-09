@@ -68,13 +68,5 @@ recommendationSchema.index({ recommendedUser: 1 });
 recommendationSchema.index({ jobId: 1, status: 1 });
 recommendationSchema.index({ status: 1, createdAt: -1 });
 
-// Virtual for active recommendations count per user
-recommendationSchema.statics.getActivePendingCount = function(recommenderId) {
-  return this.countDocuments({ 
-    recommender: recommenderId, 
-    status: 'pending' 
-  });
-};
-
 const Recommendation = mongoose.models.Recommendation || mongoose.model("Recommendation", recommendationSchema);
 export default Recommendation;

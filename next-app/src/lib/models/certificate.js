@@ -8,8 +8,11 @@ const certificateSchema = new mongoose.Schema({
   jobrole: { type: String, required: true },
   fromDate: { type: Date, required: true },
   toDate: { type: Date, required: true },
+  certificateId: { type: String, unique: true },
   issuedBy: { type: String, default: "FMPG" },
   issuedOn: { type: Date, default: Date.now }
+}, {
+  timestamps: true
 });
 
 const Certificate = mongoose.models.Certificate || mongoose.model("Certificate", certificateSchema);

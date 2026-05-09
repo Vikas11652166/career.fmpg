@@ -8,7 +8,6 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileText, 
-  ChevronRight, 
   Clock, 
   CheckCircle, 
   XCircle, 
@@ -18,7 +17,15 @@ import {
   Eye,
   Copy,
   Calendar,
-  Building
+  Building,
+  User,
+  GraduationCap,
+  Briefcase,
+  Layers,
+  HelpCircle,
+  FileDown,
+  X,
+  ChevronRight
 } from 'lucide-react';
 
 export default function MyApplicationsPage() {
@@ -26,6 +33,7 @@ export default function MyApplicationsPage() {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedApp, setSelectedApp] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchApps = async () => {
@@ -52,6 +60,11 @@ export default function MyApplicationsPage() {
     }
   };
 
+  const openDetails = (app) => {
+    setSelectedApp(app);
+    setIsModalOpen(true);
+  };
+
   if (loading) return <div className="min-h-screen bg-[#fcfcfc] flex items-center justify-center font-black uppercase tracking-widest text-xs animate-pulse text-gray-400">ACCESSING ARCHIVES...</div>;
 
   return (
@@ -74,121 +87,216 @@ export default function MyApplicationsPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-            {/* List */}
-            <div className="lg:col-span-5 space-y-4">
-              {applications.map((app) => {
-                const config = getStatusConfig(app.status);
-                const Icon = config.icon;
-                return (
-                  <motion.div 
-                    key={app._id}
-                    layoutId={app._id}
-                    onClick={() => setSelectedApp(app)}
-                    className={`p-8 rounded-[2.5rem] border transition-all cursor-pointer group ${selectedApp?._id === app._id ? 'bg-white border-lime-400 shadow-xl' : 'bg-white/50 border-gray-100 hover:border-gray-200'}`}
-                  >
-                    <div className="flex items-start justify-between mb-6">
-                      <div className={`${config.bg} p-4 rounded-2xl`}>
-                        <Icon className={`w-5 h-5 ${config.color}`} />
-                      </div>
-                      <span className={`text-[8px] font-black uppercase tracking-[0.2em] ${config.color}`}>{config.label}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {applications.map((app) => {
+              const config = getStatusConfig(app.status);
+              const Icon = config.icon;
+              return (
+                <motion.div 
+                  key={app._id}
+                  whileHover={{ y: -10 }}
+                  onClick={() => openDetails(app)}
+                  className="bg-white border border-gray-100 p-8 rounded-[3rem] shadow-xl hover:shadow-2xl transition-all cursor-pointer group"
+                >
+                  <div className="flex items-start justify-between mb-8">
+                    <div className={`${config.bg} p-4 rounded-2xl`}>
+                      <Icon className={`w-6 h-6 ${config.color}`} />
                     </div>
-                    <h3 className="text-xl font-black uppercase tracking-tighter mb-2 group-hover:text-lime-500 transition-colors">{app.jobId?.title || 'Unknown Position'}</h3>
-                    <div className="flex items-center gap-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                       <span className="flex items-center gap-2"><Building className="w-3 h-3" /> {app.jobId?.company || 'FMPG'}</span>
-                       <span>•</span>
-                       <span>{new Date(app.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            {/* Details */}
-            <div className="lg:col-span-7">
-              <AnimatePresence mode="wait">
-                {selectedApp ? (
-                  <motion.div 
-                    key={selectedApp._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white border border-gray-100 p-12 rounded-[3.5rem] shadow-2xl sticky top-32"
-                  >
-                    <div className="flex items-center justify-between mb-12">
-                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-lime-500">TRANSMISSION DATA</span>
-                      <button 
-                        onClick={() => {
-                          navigator.clipboard.writeText(selectedApp._id);
-                          toast.success('ID COPIED');
-                        }}
-                        className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-gray-400 hover:text-black transition-colors"
-                      >
-                        ID: {selectedApp._id.substring(0, 8)}... <Copy className="w-3 h-3" />
-                      </button>
-                    </div>
-
-                    <div className="space-y-12">
-                       <div>
-                          <h2 className="text-4xl font-black uppercase tracking-tighter mb-4">{selectedApp.jobId?.title}</h2>
-                          <p className="text-gray-400 text-xs font-bold uppercase tracking-widest leading-relaxed">
-                            Applied on {new Date(selectedApp.createdAt).toLocaleString()}
-                          </p>
-                       </div>
-
-                       <div className="grid grid-cols-2 gap-6">
-                          <div className="bg-gray-50 p-8 rounded-[2rem]">
-                             <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-4">STATUS RECAP</p>
-                             <div className="flex items-center gap-4">
-                                <div className={`${getStatusConfig(selectedApp.status).bg} p-3 rounded-xl`}>
-                                   <Clock className={`w-4 h-4 ${getStatusConfig(selectedApp.status).color}`} />
-                                </div>
-                                <span className="text-sm font-black uppercase tracking-tight">{getStatusConfig(selectedApp.status).label}</span>
-                             </div>
-                          </div>
-                          <div className="bg-gray-50 p-8 rounded-[2rem]">
-                             <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-4">DOCUMENTATION</p>
-                             <button className="flex items-center gap-4 group">
-                                <div className="bg-lime-400 p-3 rounded-xl group-hover:scale-110 transition-transform">
-                                   <Eye className="w-4 h-4 text-black" />
-                                </div>
-                                <span className="text-sm font-black uppercase tracking-tight group-hover:text-lime-500 transition-colors">Resume.pdf</span>
-                             </button>
-                          </div>
-                       </div>
-
-                       <div className="space-y-6">
-                          <h4 className="text-[10px] font-black uppercase tracking-widest text-lime-500">COVER STATEMENT</h4>
-                          <p className="text-sm font-medium text-gray-600 leading-relaxed bg-gray-50/50 p-8 rounded-[2rem] border border-gray-100">
-                             {selectedApp.coverLetter || 'No cover statement provided.'}
-                          </p>
-                       </div>
-
-                       {selectedApp.status === 'offered' && (
-                          <div className="pt-8 border-t border-gray-100">
-                             <h4 className="text-[10px] font-black uppercase tracking-widest text-lime-500 mb-6">OFFER PROTOCOL</h4>
-                             <div className="flex gap-4">
-                                <button className="flex-1 py-5 bg-lime-400 text-black rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-3 hover:scale-[1.02] transition-all shadow-xl shadow-lime-400/20">
-                                   <CheckCircle className="w-4 h-4" /> Accept Offer
-                                </button>
-                                <button className="px-8 py-5 border-2 border-gray-100 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-all">
-                                   <Download className="w-4 h-4" />
-                                </button>
-                             </div>
-                          </div>
-                       )}
-                    </div>
-                  </motion.div>
-                ) : (
-                  <div className="h-[600px] border-4 border-dashed border-gray-50 rounded-[3.5rem] flex flex-col items-center justify-center text-center p-12">
-                    <FileText className="w-16 h-16 text-gray-100 mb-6" />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-300">Select an application record to <br /> initiate deep inspection</p>
+                    <span className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl ${config.bg} ${config.color}`}>
+                      {config.label}
+                    </span>
                   </div>
-                )}
-              </AnimatePresence>
-            </div>
+                  
+                  <h3 className="text-2xl font-black uppercase tracking-tighter mb-2 group-hover:text-lime-500 transition-colors">
+                    {app.jobId?.title || 'Position Registry'}
+                  </h3>
+                  
+                  <div className="space-y-3 mb-8">
+                    <div className="flex items-center gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      <Building className="w-3 h-3" /> {app.jobId?.company || 'FMPG'}
+                    </div>
+                    <div className="flex items-center gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      <Calendar className="w-3 h-3" /> {new Date(app.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-6 border-t border-gray-50">
+                    <span className="text-[8px] font-black uppercase tracking-widest text-gray-300">TRX ID: {app._id.substring(0, 8)}</span>
+                    <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center group-hover:bg-lime-500 group-hover:text-white transition-all">
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </div>
+
+      {/* Details Modal */}
+      <AnimatePresence>
+        {isModalOpen && selectedApp && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsModalOpen(false)}
+              className="absolute inset-0 bg-[#0a0a0a]/90 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-4xl bg-white rounded-[3.5rem] overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto"
+            >
+              <div className="p-12">
+                {/* Modal Header */}
+                <div className="flex justify-between items-start mb-12">
+                  <div>
+                    <span className="text-lime-500 font-black text-[10px] tracking-[0.3em] uppercase mb-4 block">APPLICATION INTELLIGENCE</span>
+                    <h3 className="text-4xl font-black tracking-tighter uppercase">{selectedApp.jobId?.title}</h3>
+                  </div>
+                  <button onClick={() => setIsModalOpen(false)} className="p-4 hover:bg-gray-50 rounded-2xl transition-colors text-gray-400">
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+
+                {/* Modal Content */}
+                <div className="space-y-12">
+                  {/* Status Bar */}
+                  <div className="bg-gray-50 p-8 rounded-[2.5rem] flex items-center justify-between">
+                    <div className="flex items-center gap-6">
+                      <div className={`${getStatusConfig(selectedApp.status).bg} p-4 rounded-2xl`}>
+                        <Clock className={`w-6 h-6 ${getStatusConfig(selectedApp.status).color}`} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">CURRENT PHASE</p>
+                        <p className="text-xl font-black uppercase tracking-tight">{getStatusConfig(selectedApp.status).label}</p>
+                      </div>
+                    </div>
+                    {selectedApp.resumeUrl && (
+                      <Link 
+                        href={selectedApp.resumeUrl} 
+                        target="_blank"
+                        className="px-8 py-4 bg-white border border-gray-100 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center gap-3 hover:border-lime-500 transition-all shadow-sm"
+                      >
+                        <FileDown className="w-4 h-4" /> Download Resume
+                      </Link>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    {/* Personal & Professional */}
+                    <div className="space-y-12">
+                      <section>
+                        <div className="flex items-center gap-3 mb-6">
+                          <User className="w-4 h-4 text-lime-500" />
+                          <h4 className="text-[10px] font-black uppercase tracking-widest">Candidate Identity</h4>
+                        </div>
+                        <div className="space-y-4 bg-gray-50/50 p-8 rounded-[2rem] border border-gray-50">
+                          <div>
+                            <p className="text-[8px] font-black text-gray-300 uppercase mb-1">Full Name</p>
+                            <p className="font-bold text-sm">{selectedApp.fullName}</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-gray-300 uppercase mb-1">Email Node</p>
+                            <p className="font-bold text-sm">{selectedApp.email}</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-gray-300 uppercase mb-1">Phone Protocol</p>
+                            <p className="font-bold text-sm">{selectedApp.phone}</p>
+                          </div>
+                        </div>
+                      </section>
+
+                      <section>
+                        <div className="flex items-center gap-3 mb-6">
+                          <Layers className="w-4 h-4 text-lime-500" />
+                          <h4 className="text-[10px] font-black uppercase tracking-widest">Skill Matrix</h4>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedApp.skills?.map((skill, i) => (
+                            <span key={i} className="px-4 py-2 bg-gray-50 text-[10px] font-black uppercase tracking-widest rounded-lg border border-gray-100">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </section>
+                    </div>
+
+                    {/* Education & Experience */}
+                    <div className="space-y-12">
+                      <section>
+                        <div className="flex items-center gap-3 mb-6">
+                          <GraduationCap className="w-4 h-4 text-lime-500" />
+                          <h4 className="text-[10px] font-black uppercase tracking-widest">Academic History</h4>
+                        </div>
+                        <div className="p-8 bg-gray-50/50 rounded-[2rem] border border-gray-50 italic text-sm text-gray-500 whitespace-pre-wrap leading-relaxed">
+                          {selectedApp.education || 'Academic records not specified.'}
+                        </div>
+                      </section>
+
+                      <section>
+                        <div className="flex items-center gap-3 mb-6">
+                          <Briefcase className="w-4 h-4 text-lime-500" />
+                          <h4 className="text-[10px] font-black uppercase tracking-widest">Professional Experience</h4>
+                        </div>
+                        <div className="p-8 bg-gray-50/50 rounded-[2rem] border border-gray-50 italic text-sm text-gray-500 whitespace-pre-wrap leading-relaxed">
+                          {selectedApp.experience || 'Professional history not specified.'}
+                        </div>
+                      </section>
+                    </div>
+                  </div>
+
+                  {/* Cover Letter */}
+                  <section>
+                    <div className="flex items-center gap-3 mb-6">
+                      <FileText className="w-4 h-4 text-lime-500" />
+                      <h4 className="text-[10px] font-black uppercase tracking-widest">Transmission Statement (Cover Letter)</h4>
+                    </div>
+                    <div className="p-10 bg-gray-50/50 rounded-[2.5rem] border border-gray-50 text-sm text-gray-600 leading-relaxed">
+                      {selectedApp.coverLetter || 'No cover statement provided with this transmission.'}
+                    </div>
+                  </section>
+
+                  {/* Question Answers */}
+                  {selectedApp.questionAnswers?.length > 0 && (
+                    <section>
+                      <div className="flex items-center gap-3 mb-6">
+                        <HelpCircle className="w-4 h-4 text-lime-500" />
+                        <h4 className="text-[10px] font-black uppercase tracking-widest">Position Specific Inquiry Responses</h4>
+                      </div>
+                      <div className="space-y-4">
+                        {selectedApp.questionAnswers.map((qa, i) => (
+                          <div key={i} className="p-8 bg-gray-50/50 rounded-[2rem] border border-gray-50">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">Q: {qa.questionText}</p>
+                            <p className="text-sm font-bold">
+                              {qa.questionType === 'file' ? (
+                                <Link href={qa.fileUrl} target="_blank" className="text-lime-500 hover:underline flex items-center gap-2">
+                                  <Download className="w-3 h-3" /> View Submitted Document
+                                </Link>
+                              ) : (
+                                Array.isArray(qa.answer) ? qa.answer.join(', ') : qa.answer || 'No response recorded.'
+                              )}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </div>
+
+                {/* Modal Footer */}
+                <div className="mt-12 pt-12 border-t border-gray-100 flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-gray-300">
+                  <span>Application Protocol ID: {selectedApp._id}</span>
+                  <span>Logged at {new Date(selectedApp.createdAt).toLocaleString()}</span>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

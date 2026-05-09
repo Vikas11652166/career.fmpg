@@ -1,4 +1,4 @@
-const AuditLog = require("../models/auditLog");
+import AuditLog from "../models/auditLog";
 
 /**
  * Log an audit trail entry.
@@ -9,7 +9,7 @@ const AuditLog = require("../models/auditLog");
  * @param {mongoose.Types.ObjectId|String} params.resourceId - ID of the entity affected
  * @param {Object} [params.changes] - Details of the changes made {old: ..., new: ...}
  */
-exports.logAudit = async ({ req, action, resourceEntity, resourceId, changes = null }) => {
+export const logAudit = async ({ req, action, resourceEntity, resourceId, changes = null }) => {
   try {
     if (!req.user) {
       console.warn("Audit Logging: Expected req.user but got undefined. Skipping audit log.");
@@ -24,7 +24,7 @@ exports.logAudit = async ({ req, action, resourceEntity, resourceId, changes = n
       resourceId,
       changes,
       ipAddress: req.ip || (req.connection && req.connection.remoteAddress) || null,
-      userAgent: req.get ? req.get("User-Agent") : null
+      userAgent: req.headers && req.headers['user-agent'] ? req.headers['user-agent'] : null
     });
 
     await log.save();

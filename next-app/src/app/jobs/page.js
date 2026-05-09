@@ -108,7 +108,15 @@ export default function JobsPage() {
                       <span className="text-lime-500 font-black text-[10px] tracking-widest uppercase">{job.location}</span>
                     </div>
                     <h3 className="text-3xl font-black tracking-tighter uppercase mb-4 group-hover:text-lime-500 transition-colors">{job.title}</h3>
-                    <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">{job.company} • {job.department}</p>
+                    <div className="flex flex-wrap gap-x-6 gap-y-2">
+                       <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">{job.company} • {job.department}</p>
+                       {job.salary && (
+                         <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-lime-500" />
+                            <p className="text-lime-600 font-black uppercase tracking-widest text-xs">{job.salary}</p>
+                         </div>
+                       )}
+                    </div>
                   </div>
                   
                   <div className="flex items-center gap-4">

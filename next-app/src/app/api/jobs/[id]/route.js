@@ -30,7 +30,7 @@ export async function PUT(request, { params }) {
   try {
     const { id } = await params;
     const user = await verifyAuth(request);
-    if (!user || (user.role !== 'admin' && user.role !== 'hr')) {
+    if (!user || (user.role !== 'admin' && user.role !== 'hr' && user.role !== 'super-admin')) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -51,7 +51,7 @@ export async function DELETE(request, { params }) {
   try {
     const { id } = await params;
     const user = await verifyAuth(request);
-    if (!user || (user.role !== 'admin' && user.role !== 'hr')) {
+    if (!user || (user.role !== 'admin' && user.role !== 'hr' && user.role !== 'super-admin')) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 

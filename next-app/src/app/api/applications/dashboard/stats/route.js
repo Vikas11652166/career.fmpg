@@ -3,13 +3,14 @@ import connectDB from '@/lib/db/connect';
 import Application from '@/lib/models/application';
 import Job from '@/lib/models/job';
 import Certificate from '@/lib/models/certificate';
+import OfferLetter from '@/lib/models/offerLetter';
 import { verifyAuth } from '@/lib/auth/middleware';
 import mongoose from 'mongoose';
 
 export async function GET(req) {
   try {
     const user = await verifyAuth(req);
-    if (!user || (user.role !== 'admin' && user.role !== 'hr')) {
+    if (!user || (user.role !== 'admin' && user.role !== 'hr' && user.role !== 'super-admin')) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -36,11 +37,13 @@ export async function GET(req) {
       appStats,
       totalJobsCount,
       certificatesCount,
+      offersCount,
       recentApps
     ] = await Promise.all([
       Application.aggregate([{ $match: dateMatch }, { $group: { _id: "$status", count: { $sum: 1 } } }]),
       Job.countDocuments({ isActive: true }),
       Certificate.countDocuments(),
+      OfferLetter.countDocuments(),
       Application.find(dateMatch)
         .sort({ createdAt: -1 })
         .limit(10)
@@ -71,7 +74,7 @@ export async function GET(req) {
       conversionRate,
       activeJobs: totalJobsCount,
       certificatesIssued: certificatesCount,
-      offersGenerated,
+      offersGenerated: offersCount,
       recentApplicationsList: recentApps
     });
 

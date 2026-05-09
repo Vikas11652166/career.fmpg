@@ -17,9 +17,9 @@ export async function GET(request, { params }) {
       return NextResponse.json({ message: 'Application not found' }, { status: 404 });
     }
 
-    // Security check: Only admin, HR, or the applicant can view
-    if (user.role !== 'admin' && user.role !== 'hr' && user.userId !== application.userId._id.toString()) {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 0 }); // Next.js convention for forbidden is usually 403 but let's use 403
+    // Security check: Only admin, HR, super-admin, or the applicant can view
+    if (user.role !== 'admin' && user.role !== 'hr' && user.role !== 'super-admin' && user.userId !== application.userId._id.toString()) {
+      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
     return NextResponse.json(application);
@@ -33,7 +33,7 @@ export async function PATCH(request, { params }) {
   try {
     const { id } = await params;
     const user = await verifyAuth(request);
-    if (!user || (user.role !== 'admin' && user.role !== 'hr')) {
+    if (!user || (user.role !== 'admin' && user.role !== 'hr' && user.role !== 'super-admin')) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 

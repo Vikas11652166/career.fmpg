@@ -1,6 +1,5 @@
-const nodemailer = require('nodemailer');
-const templates = require('../utils/emailTemplates');
-require('dotenv').config();
+import nodemailer from 'nodemailer';
+import * as templates from '../utils/emailTemplates';
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -12,7 +11,7 @@ const transporter = nodemailer.createTransport({
 
 console.log("Email service initialized with modern templates");
 
-exports.sendOfferLetter = async (application, jobDetails, offerLetterPdf, acceptanceLink, validUntil, hrContact) => {
+export const sendOfferLetter = async (application, jobDetails, offerLetterPdf, acceptanceLink, validUntil, hrContact) => {
   try {
     const mailOptions = {
       from: process.env.EMAIL_USER,
@@ -34,7 +33,7 @@ exports.sendOfferLetter = async (application, jobDetails, offerLetterPdf, accept
   }
 };
 
-exports.sendWelcomeEmail = async (candidateDetails) => {
+export const sendWelcomeEmail = async (candidateDetails) => {
   try {
     const mailOptions = {
       from: process.env.EMAIL_USER,
@@ -51,7 +50,7 @@ exports.sendWelcomeEmail = async (candidateDetails) => {
   }
 };
 
-exports.sendApplicationConfirmation = async (applicantDetails, jobTitle) => {
+export const sendApplicationConfirmation = async (applicantDetails, jobTitle) => {
   try {
     const mailOptions = {
       from: process.env.EMAIL_USER,
@@ -68,7 +67,7 @@ exports.sendApplicationConfirmation = async (applicantDetails, jobTitle) => {
   }
 };
 
-exports.sendContractStatusUpdate = async (contractDetails, adminComments) => {
+export const sendContractStatusUpdate = async (contractDetails, adminComments) => {
   try {
     const statusMessages = {
       'Under_Review': {
@@ -115,7 +114,7 @@ exports.sendContractStatusUpdate = async (contractDetails, adminComments) => {
   }
 };
 
-exports.sendContractSubmissionConfirmation = async (contractDetails) => {
+export const sendContractSubmissionConfirmation = async (contractDetails) => {
   try {
     const mailOptions = {
       from: process.env.EMAIL_USER,
@@ -132,7 +131,7 @@ exports.sendContractSubmissionConfirmation = async (contractDetails) => {
   }
 };
 
-exports.sendEmailVerificationOTP = async (email, otp, name) => {
+export const sendEmailVerificationOTP = async (email, otp, name) => {
   try {
     const mailOptions = {
       from: process.env.EMAIL_USER,
@@ -149,7 +148,7 @@ exports.sendEmailVerificationOTP = async (email, otp, name) => {
   }
 };
 
-exports.sendPasswordResetOTP = async (email, otp, name) => {
+export const sendPasswordResetOTP = async (email, otp, name) => {
   try {
     const mailOptions = {
       from: process.env.EMAIL_USER,
@@ -166,7 +165,7 @@ exports.sendPasswordResetOTP = async (email, otp, name) => {
   }
 };
 
-exports.sendTerminationEmail = async ({ email, name, reason }) => {
+export const sendTerminationEmail = async ({ email, name, reason }) => {
   try {
     const mailOptions = {
       from: process.env.EMAIL_USER,
@@ -183,7 +182,7 @@ exports.sendTerminationEmail = async ({ email, name, reason }) => {
   }
 };
 
-exports.sendBulkEmployeeWelcome = async (employeeDetails, tempPassword) => {
+export const sendBulkEmployeeWelcome = async (employeeDetails, tempPassword) => {
   try {
     const mailOptions = {
       from: process.env.EMAIL_USER,

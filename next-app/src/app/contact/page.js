@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { contactService } from '@/services/api';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
-import { Mail, Phone, MapPin, Send, Instagram, Facebook, ArrowUpRight } from 'lucide-react';
-
+import { Mail, Phone, MapPin, Send, ArrowUpRight } from 'lucide-react';
+import { FaFacebook, FaInstagram } from 'react-icons/fa';
 export default function ContactPage() {
   const [formData, setFormData] = useState({
     name: '',
@@ -79,10 +79,10 @@ export default function ContactPage() {
                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-lime-500 mb-6">SOCIAL FREQUENCIES</p>
                 <div className="flex gap-4">
                   <button className="bg-gray-50 p-4 rounded-2xl hover:bg-lime-400 transition-all group">
-                    <Instagram className="w-5 h-5 text-gray-300 group-hover:text-black" />
+                    <FaInstagram className="w-5 h-5 text-gray-300 group-hover:text-black" />
                   </button>
                   <button className="bg-gray-50 p-4 rounded-2xl hover:bg-lime-400 transition-all group">
-                    <Facebook className="w-5 h-5 text-gray-300 group-hover:text-black" />
+                    <FaFacebook className="w-5 h-5 text-gray-300 group-hover:text-black" />
                   </button>
                 </div>
               </div>

@@ -6,7 +6,12 @@ import { verifyAuth } from '@/lib/auth/middleware';
 export async function GET(request) {
   try {
     const user = await verifyAuth(request);
-    if (!user || (user.role !== 'admin' && user.role !== 'super-admin')) {
+    if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+
+    const isAdmin = user.role === 'admin' || user.role === 'super-admin';
+    const isHR = user.department?.toUpperCase() === 'HR' || user.department === 'General Management/Administration';
+
+    if (!isAdmin && !isHR) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -50,7 +55,12 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const user = await verifyAuth(request);
-    if (!user || (user.role !== 'admin' && user.role !== 'super-admin')) {
+    if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+
+    const isAdmin = user.role === 'admin' || user.role === 'super-admin';
+    const isHR = user.department?.toUpperCase() === 'HR' || user.department === 'General Management/Administration';
+
+    if (!isAdmin && !isHR) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 

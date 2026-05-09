@@ -1,5 +1,4 @@
-// Backend configuration for JWT and authentication settings
-// Next.js automatically loads .env files
+// Full-stack Next.js configuration for JWT and authentication settings
 
 export const authConfig = {
   // JWT Configuration
@@ -9,10 +8,10 @@ export const authConfig = {
   
   // Environment
   nodeEnv: process.env.NODE_ENV || 'development',
-  port: process.env.PORT || 4001,
+  port: process.env.PORT || 3000,
   
   // Database
-  mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/fmpg',
+  mongoUri: process.env.MONGO_URI,
   
   // Email Configuration
   emailUser: process.env.EMAIL_USER,
@@ -47,4 +46,29 @@ export const getCookieMaxAge = () => {
 // Get JWT expiry in milliseconds
 export const getJWTExpiryMs = () => {
   return parseJWTExpiryToMs(authConfig.jwtExpiresIn);
+};
+
+// Validate configuration
+export const validateConfig = () => {
+  const required = [
+    { key: 'JWT_SECRET', value: process.env.JWT_SECRET },
+    { key: 'MONGO_URI', value: process.env.MONGO_URI },
+  ];
+  
+  const missing = required.filter(item => !item.value);
+  
+  if (missing.length > 0) {
+    console.error('❌ Missing required environment variables:');
+    missing.forEach(item => {
+      console.error(`   - ${item.key}`);
+    });
+    // In Next.js, we might not want to process.exit(1) on the server-side during runtime
+    // but rather during build or just log the error.
+  }
+  
+  if (isDevelopment()) {
+    console.log('🔧 Authentication Configuration (Unified):');
+    console.log(`   - JWT Expires In: ${authConfig.jwtExpiresIn}`);
+    console.log(`   - Cookie Expires In: ${authConfig.jwtCookieExpiresInDays} days`);
+  }
 };

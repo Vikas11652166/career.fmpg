@@ -8,7 +8,7 @@ import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Upload, Check, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-import ReCAPTCHA from 'react-google-recaptcha';
+// import ReCAPTCHA from 'react-google-recaptcha';
 
 export default function ApplyPage() {
   const { slug } = useParams();
@@ -128,7 +128,7 @@ export default function ApplyPage() {
     }
 
     if (currentStep === totalSteps && !recaptchaToken) {
-      toast.error('Protocol requires human verification');
+      toast.error('Human verification protocol required');
       return;
     }
 
@@ -261,8 +261,23 @@ export default function ApplyPage() {
                 </motion.div>
               )}
               {((currentStep === 4 && !job?.questions?.length) || currentStep === 5) && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-10">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-12">
                    <textarea name="coverLetter" value={formData.coverLetter} onChange={handleChange} placeholder="MISSION STATEMENT / COVER LETTER" className="w-full h-60 bg-gray-50 border-2 border-transparent rounded-[2rem] py-8 px-10 outline-none focus:border-lime-500 transition-all font-bold uppercase tracking-widest text-[10px] resize-none" />
+                   
+                   <div className="bg-lime-50/50 p-8 rounded-[2rem] border border-lime-100 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <input 
+                          type="checkbox" 
+                          id="human-verify"
+                          checked={!!recaptchaToken}
+                          onChange={(e) => setRecaptchaToken(e.target.checked ? 'verified-manually' : null)}
+                          className="w-6 h-6 rounded-lg border-2 border-lime-200 text-lime-500 focus:ring-lime-500"
+                        />
+                        <label htmlFor="human-verify" className="text-[10px] font-black uppercase tracking-widest text-lime-700">
+                          I acknowledge this transmission is initiated by a human actor
+                        </label>
+                      </div>
+                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
