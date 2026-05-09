@@ -12,6 +12,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head />
       <body className="bg-[#fcfcfc] text-[#0a0a0a] font-sans antialiased">
         <AuthProvider>
           <Suspense fallback={null}>
