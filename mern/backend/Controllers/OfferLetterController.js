@@ -866,24 +866,20 @@ async function generateOfferLetterPDFInMemory(offerLetter) {
     const logoW = 140;
     const logoH = 40;
 
-    let logoDrawn = false;
     try {
         const logoPath = path.join(__dirname, '..', 'assets', 'logo_dryukr.png');
         if (fs.existsSync(logoPath)) {
             doc.image(logoPath, logoX, logoY, { fit: [logoW, logoH], align: 'left', valign: 'center' });
-            logoDrawn = true;
+        } else {
+            // Fallback: lime square + FMPG text
+            fillRR(doc, logoX, logoY + 6, 28, 28, 6, C.lime);
+            doc.font('Helvetica-Bold').fontSize(14).fillColor(C.dark);
+            doc.text('F', logoX + 8, logoY + 14, { lineBreak: false });
+            doc.font('Helvetica-Bold').fontSize(18).fillColor(C.dark);
+            doc.text('FMPG', logoX + 36, logoY + 11, { lineBreak: false });
         }
     } catch (err) {
         console.warn('Logo load failed:', err.message);
-    }
-
-    if (!logoDrawn) {
-        // Fallback text mark when logo file is missing
-        fillRR(doc, logoX, logoY + 6, 28, 28, 6, C.lime);
-        doc.font('Helvetica-Bold').fontSize(14).fillColor(C.dark);
-        doc.text('F', logoX + 8, logoY + 14, { lineBreak: false });
-        doc.font('Helvetica-Bold').fontSize(18).fillColor(C.dark);
-        doc.text('FMPG', logoX + 36, logoY + 11, { lineBreak: false });
     }
 
     // Reference — top right
@@ -909,78 +905,80 @@ async function generateOfferLetterPDFInMemory(offerLetter) {
     doc.circle(PAD + 10, y + tagH / 2, 3).fill(C.limeDark);
     doc.font('Helvetica-Bold').fontSize(7).fillColor(C.limeDeep);
     doc.text(tagText, PAD + 18, y + 5.5, { lineBreak: false, characterSpacing: 1.1 });
-    y += tagH + 10;
+    y += tagH + 8;
 
     // Headline
     const h1 = isExtended ? 'Your Offer Has Been' : "You're Hired.";
     const h2 = isExtended ? 'Extended.' : 'Welcome to FMPG.';
-    doc.font('Helvetica-Bold').fontSize(26).fillColor(C.black);
+    doc.font('Helvetica-Bold').fontSize(22).fillColor(C.black);
     doc.text(h1, PAD, y, { lineBreak: false });
-    y += 30;
-    doc.font('Helvetica-Bold').fontSize(26).fillColor(C.limeDark);
+    y += 26;
+    doc.font('Helvetica-Bold').fontSize(22).fillColor(C.limeDark);
     doc.text(h2, PAD, y, { lineBreak: false });
-    y += 32;
+    y += 28;
 
     // Lime underline accent
-    doc.rect(PAD, y, 44, 4).fill(C.lime);
-    y += 14;
+    doc.rect(PAD, y, 36, 3).fill(C.lime);
+    y += 10;
 
     // Greeting
-    doc.font('Helvetica-Bold').fontSize(11).fillColor(C.dark);
+    doc.font('Helvetica-Bold').fontSize(10).fillColor(C.dark);
     doc.text(`Dear ${offerLetter.candidateName},`, PAD, y, { lineBreak: false });
-    y += 14;
+    y += 13;
 
     const introText = isExtended
         ? `We are pleased to inform you that the validity of your offer to join FMPG has been extended. We remain excited about your potential contribution and look forward to welcoming you on board.`
         : `We are delighted to extend this formal offer of appointment to join the FMPG family. Your skills and background impressed our team, and we believe you will be a valuable addition to our growing organization.`;
 
-    doc.font('Helvetica').fontSize(9.5).fillColor(C.muted).lineGap(2);
+    doc.font('Helvetica').fontSize(8.5).fillColor(C.muted).lineGap(1);
     doc.text(introText, PAD, y, { width: W - PAD * 2 });
-    y += 40;
+    y += 34;
 
     // ── POSITION CARD ────────────────────────────────────────
-    const cardH = 54;
+    const cardH = 50;
     fillRR(doc, PAD, y, W - PAD * 2, cardH, 8, C.rowBg);
-    doc.rect(PAD, y, 4, cardH).fill(C.lime);    // left accent stripe
+    doc.rect(PAD, y, 4, cardH).fill(C.lime);
     strokeRR(doc, PAD, y, W - PAD * 2, cardH, 8, C.limeBorder, 0.75);
 
-    doc.font('Helvetica').fontSize(7.5).fillColor(C.subtle);
-    doc.text('POSITION OFFERED', PAD + 16, y + 10, { lineBreak: false, characterSpacing: 0.8 });
-    doc.font('Helvetica-Bold').fontSize(15).fillColor(C.black);
-    doc.text(offerLetter.position.toUpperCase(), PAD + 16, y + 21, { lineBreak: false });
-    if (offerLetter.department) {
-        doc.font('Helvetica').fontSize(8.5).fillColor(C.subtle);
-        doc.text(offerLetter.department, PAD + 16, y + 39, { lineBreak: false });
-    }
-
-    // Type badge
+    // Type badge (dynamic: Internship / Full-time / Contract / Part-time)
     doc.font('Helvetica-Bold').fontSize(7.5);
-    const bTW = doc.widthOfString(offerTypeLabel.toUpperCase(), { characterSpacing: 0.7 });
+    const bTW = doc.widthOfString(offerTypeLabel.toUpperCase());
     const badgeW = bTW + 20;
     const badgeX = W - PAD - badgeW - 14;
     const badgeY = y + (cardH - 18) / 2;
     pill(doc, badgeX, badgeY, badgeW, 18, C.bgAccent, C.limeBorder);
     doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C.limeDeep);
-    doc.text(offerTypeLabel.toUpperCase(), badgeX + 10, badgeY + 5, { lineBreak: false, characterSpacing: 0.7 });
+    doc.text(offerTypeLabel.toUpperCase(), badgeX + 10, badgeY + 5, { lineBreak: false });
 
-    y += cardH + 20;
+    // Position text (truncate width to avoid overlapping badge)
+    const posTextMaxW = badgeX - PAD - 26;
+    doc.font('Helvetica').fontSize(7).fillColor(C.subtle);
+    doc.text('POSITION OFFERED', PAD + 16, y + 9, { lineBreak: false, characterSpacing: 0.8 });
+    doc.font('Helvetica-Bold').fontSize(13).fillColor(C.black);
+    doc.text(offerLetter.position.toUpperCase(), PAD + 16, y + 19, { lineBreak: false, width: posTextMaxW, ellipsis: true });
+    if (offerLetter.department) {
+        doc.font('Helvetica').fontSize(8).fillColor(C.subtle);
+        doc.text(offerLetter.department, PAD + 16, y + 36, { lineBreak: false, width: posTextMaxW, ellipsis: true });
+    }
+
+    y += cardH + 14;
 
     // ── DETAILS GRID ─────────────────────────────────────────
     sectionLabel(doc, 'Offer Details', PAD, y, W - PAD * 2);
-    y += 16;
+    y += 13;
 
     const details = [
         ['Joining Date', fmt(offerLetter.startDate),                    false],
         ['Duration',     getOfferDurationText(offerLetter),             false],
         [salaryLabel,    salaryValue + payoutSuffix,                    true],
         ['Work Type',    offerLetter.workType || 'On-site',             false],
-        ['Location',     offerLetter.joiningLocation,                   false],
+        ['Location',     offerLetter.joiningLocation || '—',           false],
         ['Reporting To', offerLetter.reportingManager || 'FMPG Team',  false],
     ];
 
     const gridW = W - PAD * 2;
     const cellW = gridW / 3;
-    const cellH = 38;
+    const cellH = 34;
     const rows  = Math.ceil(details.length / 3);
     const gridH = rows * cellH;
 
@@ -991,9 +989,9 @@ async function generateOfferLetterPDFInMemory(offerLetter) {
     details.forEach(([label, value, accent], i) => {
         const col = i % 3;
         const row = Math.floor(i / 3);
-        detailCell(doc, label, value, PAD + col * cellW + 12, y + row * cellH + 8, cellW, accent);
+        detailCell(doc, label, value, PAD + col * cellW + 10, y + row * cellH + 7, cellW, accent);
     });
-    y += gridH + 20;
+    y += gridH + 14;
 
     // ── TERMS ────────────────────────────────────────────────
     sectionLabel(doc, 'Terms & Expectations', PAD, y, W - PAD * 2);
