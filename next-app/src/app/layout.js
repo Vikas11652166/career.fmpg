@@ -1,8 +1,7 @@
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Navbar from "@/components/layout/Navbar";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import ToastProvider from "@/components/layout/ToastProvider";
 
 export const metadata = {
   title: "FMPG Careers | The Future of Property Management",
@@ -18,11 +17,7 @@ export default function RootLayout({ children }) {
           <main className="min-h-screen">
             {children}
           </main>
-          <ToastContainer 
-            position="bottom-right"
-            theme="light"
-            toastClassName="!rounded-3xl !p-6 !shadow-2xl border border-gray-100"
-          />
+          <ToastProvider />
         </AuthProvider>
       </body>
     </html>
