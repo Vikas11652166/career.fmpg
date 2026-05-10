@@ -67,7 +67,7 @@ exports.issue = async (req, res) => {
         }); const savedCertificate = await certificate.save();
         console.log(`Saved: ${savedCertificate._id}`);
 
-        try { await logAudit({ req, action: "ISSUE", resourceEntity: "Certificate", resourceId: savedCertificate._id, changes: { name, domain, jobrole } }); } catch(err){}
+        try { await logAudit({ req, action: "ISSUE", resourceEntity: "Certificate", resourceId: savedCertificate._id, changes: { name, domain, jobrole } }); } catch (err) { }
 
         // Don't generate PDF immediately - generate only when needed
         res.status(201).json({
@@ -163,7 +163,7 @@ exports.downloadCertificate = async (req, res) => {
 
         console.log(`Starting download of: ${certId}`);
 
-        try { await logAudit({ req, action: "DOWNLOAD", resourceEntity: "Certificate", resourceId: certId, changes: {} }); } catch(err){}
+        try { await logAudit({ req, action: "DOWNLOAD", resourceEntity: "Certificate", resourceId: certId, changes: {} }); } catch (err) { }
 
         // Set headers for download
         res.setHeader('Content-Type', 'application/pdf');
@@ -237,15 +237,15 @@ exports.generateCertificate = async (req, res) => {
 // ============================================================
 
 const C = {
-    black   : '#0d0d0d',
-    dark2   : '#1c1c1c',
-    dark3   : '#252525',
-    lime    : '#d6f300',
-    limeDim : '#a8c200',
-    white   : '#ffffff',
+    black: '#0d0d0d',
+    dark2: '#1c1c1c',
+    dark3: '#252525',
+    lime: '#d6f300',
+    limeDim: '#a8c200',
+    white: '#ffffff',
     offWhite: '#e8e8e8',
-    gray1   : '#aaaaaa',
-    gray2   : '#666666',
+    gray1: '#aaaaaa',
+    gray2: '#666666',
 };
 
 const W = 841.89;
@@ -338,10 +338,10 @@ function drawBackground(doc) {
 
     doc.save();
     doc.lineWidth(0.6).strokeColor(C.lime).opacity(0.5);
-    doc.moveTo(50, H - 78).lineTo(W - 50, H - 78).stroke();
+    doc.moveTo(50, H - 125).lineTo(W - 50, H - 125).stroke();
     doc.restore();
 
-    [[50, 118], [W - 50, 118], [50, H - 78], [W - 50, H - 78]].forEach(([dx, dy]) => {
+    [[50, 118], [W - 50, 118], [50, H - 125], [W - 50, H - 125]].forEach(([dx, dy]) => {
         doc.circle(dx, dy, 3).fill(C.lime);
     });
 
@@ -361,7 +361,7 @@ function drawBackground(doc) {
             doc.image(logoPath, logoX + 12, logoY + 6, { height: logoH - 12 });
             logoDrawn = true;
         }
-    } catch (e) {}
+    } catch (e) { }
 
     if (!logoDrawn) {
         doc.font('Helvetica-Bold').fontSize(22).fillColor(C.lime);
@@ -581,7 +581,7 @@ async function generateCertificatePDFBuffer(certificate) {
     doc.text(
         'This is a digitally issued certificate and is valid without a physical signature. Verify at fmpg.in/verify',
         50,
-        H - 24,
+        H - 32,
         { lineBreak: false, width: W - 100, align: 'center' }
     );
 
@@ -647,7 +647,7 @@ exports.sendCertificateEmail = async (req, res) => {
             `certificate-${certificate._id}.pdf`
         );
 
-        try { await logAudit({ req, action: "EMAIL", resourceEntity: "Certificate", resourceId: certificate._id, changes: { recipientEmail: emailToSend } }); } catch(err){}
+        try { await logAudit({ req, action: "EMAIL", resourceEntity: "Certificate", resourceId: certificate._id, changes: { recipientEmail: emailToSend } }); } catch (err) { }
 
         console.log(`Email sent: ${emailToSend}`);
         res.status(200).json({

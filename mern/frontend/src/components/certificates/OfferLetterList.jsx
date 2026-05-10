@@ -195,6 +195,12 @@ const OfferLetterList = ({
                         <p className="text-gray-400 text-sm">Start Date</p>
                         <p className="text-white">{new Date(letter.startDate).toLocaleDateString()}</p>
                       </div>
+                      {letter.duration && (
+                        <div>
+                          <p className="text-gray-400 text-sm">Duration</p>
+                          <p className="text-white">{letter.duration}</p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-gray-400 text-sm">Location</p>
                         <p className="text-white">{letter.joiningLocation}</p>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const Loader = ({ fullPage = false, inline = false, size = 'lg' }) => {
+const Loader = ({ fullPage = false, inline = false, size = 'lg', text = "" }) => {
   const containerClasses = fullPage 
     ? "fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center" 
     : inline
@@ -13,19 +13,22 @@ const Loader = ({ fullPage = false, inline = false, size = 'lg' }) => {
       outer: 'w-8 h-8',
       middle: 'inset-1',
       inner: 'inset-2.5',
-      dot: 'w-1 h-1'
+      dot: 'w-1 h-1',
+      text: 'text-xs mt-2'
     },
     md: {
       outer: 'w-14 h-14',
       middle: 'inset-1.5',
       inner: 'inset-4',
-      dot: 'w-1.5 h-1.5'
+      dot: 'w-1.5 h-1.5',
+      text: 'text-sm mt-3'
     },
     lg: {
       outer: 'w-24 h-24',
       middle: 'inset-2',
       inner: 'inset-6',
-      dot: 'w-1.5 h-1.5'
+      dot: 'w-1.5 h-1.5',
+      text: 'text-base mt-6'
     }
   };
 
@@ -61,6 +64,15 @@ const Loader = ({ fullPage = false, inline = false, size = 'lg' }) => {
         </div>
       </div>
 
+      {text && (
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`${selectedSize.text} font-medium text-lime-400/80 tracking-wide`}
+        >
+          {text}
+        </motion.p>
+      )}
     </div>
   );
 };

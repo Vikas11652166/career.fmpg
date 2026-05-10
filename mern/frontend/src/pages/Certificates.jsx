@@ -43,7 +43,9 @@ const Certificates = () => {
     hrContactName: currentUser?.name || '',
     hrContactEmail: currentUser?.email || '',
     hrContactPhone: '',
-    sendEmail: false
+    sendEmail: false,
+    endDate: '',
+    duration: ''
   });
 
   useEffect(() => {
@@ -230,6 +232,8 @@ const Certificates = () => {
     formData.append('hrContactName', bulkOfferCommon.hrContactName);
     formData.append('hrContactEmail', bulkOfferCommon.hrContactEmail);
     formData.append('hrContactPhone', bulkOfferCommon.hrContactPhone);
+    formData.append('endDate', bulkOfferCommon.endDate || '');
+    formData.append('duration', bulkOfferCommon.duration || '');
     formData.append('sendEmail', bulkOfferCommon.sendEmail);
 
     try {

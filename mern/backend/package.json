@@ -43,7 +43,8 @@
     "qrcode": "^1.5.3",
     "sharp": "^0.34.2",
     "tesseract.js": "^6.0.1",
-    "textract": "^2.5.0"
+    "textract": "^2.5.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@faker-js/faker": "^10.3.0",

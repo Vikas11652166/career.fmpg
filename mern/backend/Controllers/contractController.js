@@ -7,6 +7,14 @@ const emailService = require('../services/emailService');
 const mongoose = require("mongoose");
 const { findApplicationByIdentifier } = require("../utils/dbHelpers");
 
+function normalizeOfferLetterLookupId(rawId = "") {
+  if (!rawId) return "";
+  let id = rawId.trim();
+  // Remove prefixes if present
+  id = id.replace(/^FMPG-OFF-/i, "");
+  return id;
+}
+
 // Get offer letter for acceptance (public route)
 const getOfferForAcceptance = async (req, res) => {
   console.log("Get offer for acceptance:", req.params.slug);
@@ -16,17 +24,32 @@ const getOfferForAcceptance = async (req, res) => {
     // Find application by slug or ID
     const application = await findApplicationByIdentifier(slug);
     
-    if (!application) {
-      return res.status(404).json({ 
-        message: "Offer not found or already processed",
-        error: "OFFER_NOT_FOUND"
+    let offerLetter;
+    if (application) {
+      offerLetter = await OfferLetter.findOne({ 
+        applicationId: application._id,
+        status: 'Pending'
       });
+    } else {
+      // If no application found, check if slug is an offer letter ID
+      // This supports manual offers issued without an application
+      const offerId = normalizeOfferLetterLookupId(slug);
+      if (mongoose.Types.ObjectId.isValid(offerId)) {
+        offerLetter = await OfferLetter.findOne({ _id: offerId, status: 'Pending' });
+      } else {
+        // Try fuzzy match for offer ID
+        offerLetter = await OfferLetter.findOne({
+          $expr: {
+            $regexMatch: {
+              input: { $toString: "$_id" },
+              regex: offerId + "$",
+              options: "i"
+            }
+          },
+          status: 'Pending'
+        });
+      }
     }
-
-    const offerLetter = await OfferLetter.findOne({ 
-      applicationId: application._id,
-      status: 'Pending'
-    });
     
     if (!offerLetter) {
       return res.status(404).json({ 
@@ -90,17 +113,31 @@ const acceptOffer = async (req, res) => {
     // Find application by slug or ID
     const application = await findApplicationByIdentifier(slug);
 
-    if (!application) {
-      return res.status(404).json({ 
-        message: "Offer not found or already processed" 
+    let offerLetter;
+    if (application) {
+      offerLetter = await OfferLetter.findOne({ 
+        applicationId: application._id,
+        status: 'Pending'
       });
+    } else {
+      // Support manual offers
+      const offerId = normalizeOfferLetterLookupId(slug);
+      if (mongoose.Types.ObjectId.isValid(offerId)) {
+        offerLetter = await OfferLetter.findOne({ _id: offerId, status: 'Pending' });
+      } else {
+        offerLetter = await OfferLetter.findOne({
+          $expr: {
+            $regexMatch: {
+              input: { $toString: "$_id" },
+              regex: offerId + "$",
+              options: "i"
+            }
+          },
+          status: 'Pending'
+        });
+      }
     }
 
-    const offerLetter = await OfferLetter.findOne({ 
-      applicationId: application._id,
-      status: 'Pending'
-    });
-    
     if (!offerLetter) {
       return res.status(404).json({ 
         message: "Offer not found or already processed" 
@@ -230,17 +267,31 @@ const rejectOffer = async (req, res) => {
     // Find application by slug or ID
     const application = await findApplicationByIdentifier(slug);
 
-    if (!application) {
-      return res.status(404).json({ 
-        message: "Offer not found or already processed" 
+    let offerLetter;
+    if (application) {
+      offerLetter = await OfferLetter.findOne({ 
+        applicationId: application._id,
+        status: 'Pending'
       });
+    } else {
+      // Support manual offers
+      const offerId = normalizeOfferLetterLookupId(slug);
+      if (mongoose.Types.ObjectId.isValid(offerId)) {
+        offerLetter = await OfferLetter.findOne({ _id: offerId, status: 'Pending' });
+      } else {
+        offerLetter = await OfferLetter.findOne({
+          $expr: {
+            $regexMatch: {
+              input: { $toString: "$_id" },
+              regex: offerId + "$",
+              options: "i"
+            }
+          },
+          status: 'Pending'
+        });
+      }
     }
 
-    const offerLetter = await OfferLetter.findOne({ 
-      applicationId: application._id,
-      status: 'Pending'
-    });
-    
     if (!offerLetter) {
       return res.status(404).json({ 
         message: "Offer not found or already processed" 

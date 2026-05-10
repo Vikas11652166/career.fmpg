@@ -13,7 +13,7 @@ const offerLetterSchema = new mongoose.Schema({
   startDate: { type: Date, required: true },
   endDate: { type: Date },
   duration: { type: String },
-  joiningLocation: { type: String, required: true },
+  joiningLocation: { type: String },
   workType: { type: String, enum: ['Remote', 'On-site', 'Hybrid'], default: 'On-site' },
   benefits: [{ type: String }],
   reportingManager: { type: String },
@@ -25,6 +25,7 @@ const offerLetterSchema = new mongoose.Schema({
   issuedOn: { type: Date, default: Date.now },
   status: { type: String, enum: ['Pending', 'Accepted', 'Rejected'], default: 'Pending' },
   validUntil: { type: Date, required: true },
+  shortId: { type: String, unique: true, sparse: true }, // For efficient lookups by partial ID
   additionalNotes: { type: String },
   extensionHistory: [{
     oldValidUntil: { type: Date },
@@ -45,7 +46,11 @@ const offerLetterSchema = new mongoose.Schema({
   acceptanceComments: { type: String }, // Candidate's acceptance/rejection comments
   
   // Link to signed contract when accepted
-  contractId: { type: mongoose.Schema.Types.ObjectId, ref: "Contract" }
+  contractId: { type: mongoose.Schema.Types.ObjectId, ref: "Contract" },
+  
+  // PDF Caching
+  pdfBuffer: { type: Buffer },
+  pdfGeneratedAt: { type: Date }
 }, {
   timestamps: true
 });

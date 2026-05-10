@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { FaFileAlt, FaTimes, FaDownload, FaCheck } from 'react-icons/fa';
+import OfferDetailsFormFields from './OfferDetailsFormFields';
 
 const BulkOfferModal = ({ 
   show, 
@@ -13,6 +14,8 @@ const BulkOfferModal = ({
   setCommonDetails,
   onDownloadSample
 }) => {
+  const [durationMode, setDurationMode] = React.useState('calculate');
+  
   if (!show) return null;
 
   return (
@@ -103,7 +106,7 @@ const BulkOfferModal = ({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-400">Offer Valid Until</label>
+                  <label className="text-xs font-medium text-gray-400">Offer Acceptance Deadline</label>
                   <input 
                     type="date"
                     value={commonDetails.validUntil}
@@ -111,6 +114,58 @@ const BulkOfferModal = ({
                     className="w-full bg-[#252525] border border-gray-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-purple-500 transition-colors text-sm"
                     required
                   />
+                </div>
+                <div className="col-span-full space-y-3 pt-2">
+                  <div className="flex items-center space-x-4">
+                    <span className="text-xs font-medium text-gray-400">Common Contract Length Mode:</span>
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="bulkDurationMode"
+                        value="calculate"
+                        checked={durationMode === 'calculate'}
+                        onChange={() => setDurationMode('calculate')}
+                        className="text-purple-500 focus:ring-purple-500 bg-gray-800 border-gray-700"
+                      />
+                      <span className="text-xs text-gray-400">By End Date</span>
+                    </label>
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="bulkDurationMode"
+                        value="manual"
+                        checked={durationMode === 'manual'}
+                        onChange={() => setDurationMode('manual')}
+                        className="text-purple-500 focus:ring-purple-500 bg-gray-800 border-gray-700"
+                      />
+                      <span className="text-xs text-gray-400">Manual Duration</span>
+                    </label>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {durationMode === 'calculate' ? (
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-400">End Date (Optional)</label>
+                        <input 
+                          type="date"
+                          value={commonDetails.endDate}
+                          onChange={(e) => setCommonDetails({...commonDetails, endDate: e.target.value})}
+                          className="w-full bg-[#252525] border border-gray-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-purple-500 transition-colors text-sm"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-400">Duration (Optional)</label>
+                        <input 
+                          type="text"
+                          value={commonDetails.duration}
+                          onChange={(e) => setCommonDetails({...commonDetails, duration: e.target.value})}
+                          placeholder="e.g. 6 months"
+                          className="w-full bg-[#252525] border border-gray-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-purple-500 transition-colors text-sm"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-gray-400">Work Type</label>

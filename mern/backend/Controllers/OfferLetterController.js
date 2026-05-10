@@ -2,6 +2,7 @@ const { logAudit } = require('../services/auditService');
 const { getOfferLetterTemplate, getExtendedOfferTemplate } = require("../utils/emailTemplates");
 const OfferLetter = require("../models/offerLetter");
 const User = require("../models/user");
+const { issueOfferLetterSchema, extendOfferLetterSchema } = require("../Validators/OfferLetterValidator");
 const fs = require("fs");
 const path = require("path");
 const QRCode = require("qrcode");
@@ -13,9 +14,51 @@ const csv = require('csv-parser');
 const { Readable } = require('stream');
 const mongoose = require('mongoose');
 
+// Pre-load assets into memory to avoid repetitive I/O
+let cachedLogo = null;
+try {
+    const logoPath = path.join(__dirname, '..', 'assets', 'logo_dryukr.png');
+    if (fs.existsSync(logoPath)) {
+        cachedLogo = fs.readFileSync(logoPath);
+        console.log("✅ PDF Logo pre-loaded into memory");
+    }
+} catch (err) {
+    console.error("❌ Failed to pre-load PDF logo:", err.message);
+}
+
 function normalizeOfferLetterLookupId(rawId = "") {
     // Cleans prefixes like FMPG- or FMPG-OFF-
     return String(rawId).trim().replace(/^(FMPG-OFF-|FMPG-)/i, "");
+}
+
+async function findOfferLetterByIdentifier(identifier, populate = "userId") {
+    if (!identifier) return null;
+
+    const offerLetterId = normalizeOfferLetterLookupId(identifier);
+    let offerLetter;
+
+    if (mongoose.Types.ObjectId.isValid(offerLetterId)) {
+        offerLetter = await OfferLetter.findById(offerLetterId).populate(populate);
+    } else {
+        // Efficient lookup using shortId index
+        offerLetter = await OfferLetter.findOne({
+            shortId: offerLetterId.toUpperCase()
+        }).populate(populate);
+
+        // Fallback to slow regex ONLY if shortId not found (for legacy records)
+        if (!offerLetter && offerLetterId.length >= 4) {
+            offerLetter = await OfferLetter.findOne({
+                $expr: {
+                    $regexMatch: {
+                        input: { $toString: "$_id" },
+                        regex: offerLetterId + "$",
+                        options: "i"
+                    }
+                }
+            }).populate(populate);
+        }
+    }
+    return offerLetter;
 }
 
 // Email setup
@@ -30,6 +73,17 @@ const transporter = nodemailer.createTransport({
 exports.issueOfferLetter = async (req, res) => {
     console.log("OfferLetter: new");
     try {
+
+        const validation = issueOfferLetterSchema.safeParse(req.body);
+        if (!validation.success) {
+            return res.status(400).json({ 
+                message: "Validation failed", 
+                errors: validation.error.errors.map(err => ({ field: err.path.join('.'), message: err.message })) 
+            });
+        }
+
+        // Use validated data
+        const validatedData = validation.data;
         const {
             candidateName,
             email,
@@ -50,14 +104,7 @@ exports.issueOfferLetter = async (req, res) => {
             additionalNotes,
             offerType,
             payoutFrequency
-        } = req.body;
-
-        console.log(`For: ${candidateName}`);
-
-        if (!candidateName || !email || !position || !department || !salary || !startDate || !joiningLocation || !validUntil) {
-            console.log("Missing required fields");
-            return res.status(400).json({ message: "All required fields must be provided" });
-        }
+        } = validatedData;
 
         const userId = req.user.userId;
         console.log(`Issuer: ${userId}`);
@@ -66,9 +113,22 @@ exports.issueOfferLetter = async (req, res) => {
         const parsedEndDate = endDate ? new Date(endDate) : null;
         const parsedValidUntil = new Date(validUntil);
 
-        const resolvedDuration = (typeof duration === 'string' && duration.trim())
-            ? duration.trim()
-            : (calculateDurationText(parsedStartDate, parsedEndDate) || 'Until project completion or 3 months (whichever is longer)');
+        // Logic for duration:
+        // 1. If explicit duration provided, use it.
+        // 2. If no duration but endDate provided, calculate from dates.
+        // 3. Fallback to calculation using validUntil if endDate is missing.
+        // 4. Ultimate fallback text.
+        let resolvedDuration = '';
+        if (typeof duration === 'string' && duration.trim()) {
+            resolvedDuration = duration.trim();
+        } else {
+            const calculationEndDate = parsedEndDate || parsedValidUntil;
+            resolvedDuration = calculateDurationText(parsedStartDate, calculationEndDate);
+        }
+
+        if (!resolvedDuration) {
+            resolvedDuration = 'Until project completion or 3 months (whichever is longer)';
+        }
 
         console.log("Creating offer letter");
         const offerLetter = new OfferLetter({
@@ -93,6 +153,9 @@ exports.issueOfferLetter = async (req, res) => {
             offerType: offerType || 'Job',
             payoutFrequency: payoutFrequency || ''
         });
+
+        // Set shortId for efficient lookup (last 6 chars of ObjectId)
+        offerLetter.shortId = offerLetter._id.toString().slice(-6).toUpperCase();
 
         const savedOfferLetter = await offerLetter.save();
         console.log(`Saved: ${savedOfferLetter._id}`);
@@ -134,25 +197,10 @@ exports.getAllOfferLetters = async (req, res) => {
 exports.getOfferLetterById = async (req, res) => {
     console.log(`Get offer letter: ${req.params.id}`);
     try {
-        const offerLetterId = normalizeOfferLetterLookupId(req.params.id);
-        let offerLetter;
-
-        if (mongoose.Types.ObjectId.isValid(offerLetterId)) {
-            offerLetter = await OfferLetter.findById(offerLetterId).populate("userId", "name email");
-        } else if (offerLetterId.length >= 4) {
-            offerLetter = await OfferLetter.findOne({
-                $expr: {
-                    $regexMatch: {
-                        input: { $toString: "$_id" },
-                        regex: offerLetterId + "$",
-                        options: "i"
-                    }
-                }
-            }).populate("userId", "name email");
-        }
+        const offerLetter = await findOfferLetterByIdentifier(req.params.id, "userId");
 
         if (!offerLetter) {
-            console.log(`Not found: ${offerLetterId}`);
+            console.log(`Not found: ${req.params.id}`);
             return res.status(404).json({ message: "Offer letter not found" });
         }
 
@@ -167,25 +215,10 @@ exports.getOfferLetterById = async (req, res) => {
 exports.verifyOfferLetter = async (req, res) => {
     console.log(`Verify Offer: ${req.params.id}`);
     try {
-        const offerLetterId = normalizeOfferLetterLookupId(req.params.id);
-        let offerLetter;
-
-        if (mongoose.Types.ObjectId.isValid(offerLetterId)) {
-            offerLetter = await OfferLetter.findById(offerLetterId).populate("userId", "name email");
-        } else if (offerLetterId.length >= 4) {
-            offerLetter = await OfferLetter.findOne({
-                $expr: {
-                    $regexMatch: {
-                        input: { $toString: "$_id" },
-                        regex: offerLetterId + "$",
-                        options: "i"
-                    }
-                }
-            }).populate("userId", "name email");
-        }
+        const offerLetter = await findOfferLetterByIdentifier(req.params.id, "userId");
 
         if (!offerLetter) {
-            console.log(`Not found: ${offerLetterId}`);
+            console.log(`Not found: ${req.params.id}`);
             return res.status(404).json({ message: "Offer letter not found" });
         }
 
@@ -204,31 +237,16 @@ exports.updateOfferLetterStatus = async (req, res) => {
     console.log(`Update offer letter status: ${req.params.id}`);
     try {
         const { status } = req.body;
-        const offerLetterId = normalizeOfferLetterLookupId(req.params.id);
+        const oldLetter = await findOfferLetterByIdentifier(req.params.id, null);
 
-        if (!['Pending', 'Accepted', 'Rejected'].includes(status)) {
+        if (!status || !['Pending', 'Accepted', 'Rejected'].includes(status)) {
             return res.status(400).json({ message: "Invalid status" });
-        }
-
-        let oldLetter;
-        if (mongoose.Types.ObjectId.isValid(offerLetterId)) {
-            oldLetter = await OfferLetter.findById(offerLetterId);
-        } else if (offerLetterId.length >= 4) {
-            oldLetter = await OfferLetter.findOne({
-                $expr: {
-                    $regexMatch: {
-                        input: { $toString: "$_id" },
-                        regex: offerLetterId + "$",
-                        options: "i"
-                    }
-                }
-            });
         }
 
         if (!oldLetter) {
             return res.status(404).json({ message: "Offer letter not found" });
         }
-        
+
         const effectiveId = oldLetter._id;
 
         const updateData = { status };
@@ -292,15 +310,19 @@ exports.updateOfferLetterStatus = async (req, res) => {
 exports.extendOfferLetter = async (req, res) => {
     console.log(`Extend offer letter: ${req.params.id}`);
     try {
-        const { newValidUntil, newStartDate, newEndDate, additionalNotes } = req.body;
+        const validation = extendOfferLetterSchema.safeParse(req.body);
+        if (!validation.success) {
+            return res.status(400).json({ 
+                message: "Validation failed", 
+                errors: validation.error.errors.map(err => ({ field: err.path.join('.'), message: err.message })) 
+            });
+        }
+
+        const { newValidUntil, newStartDate, newEndDate, newDuration, additionalNotes } = validation.data;
         const offerLetterId = normalizeOfferLetterLookupId(req.params.id);
 
         if (!mongoose.Types.ObjectId.isValid(offerLetterId)) {
             return res.status(400).json({ message: "Invalid offer letter ID" });
-        }
-
-        if (!newValidUntil) {
-            return res.status(400).json({ message: "New valid until date is required" });
         }
 
         // Find the offer letter
@@ -366,7 +388,9 @@ exports.extendOfferLetter = async (req, res) => {
         const updateData = {
             $set: {
                 validUntil: newValidDate,
-                updatedAt: new Date()
+                updatedAt: new Date(),
+                pdfBuffer: undefined,
+                pdfGeneratedAt: undefined
             },
             $push: {
                 extensionHistory: extensionHistoryEntry
@@ -384,7 +408,9 @@ exports.extendOfferLetter = async (req, res) => {
         const effectiveStartDate = newStartDate ? new Date(newStartDate) : offerLetter.startDate;
         const effectiveEndDate = newEndDate ? new Date(newEndDate) : offerLetter.endDate;
 
-        if (newStartDate || newEndDate) {
+        if (newDuration && typeof newDuration === 'string' && newDuration.trim()) {
+            updateData.$set.duration = newDuration.trim();
+        } else if (newEndDate || (newStartDate && offerLetter.endDate)) {
             updateData.$set.duration = calculateDurationText(effectiveStartDate, effectiveEndDate)
                 || offerLetter.duration;
         }
@@ -460,33 +486,21 @@ exports.extendOfferLetter = async (req, res) => {
 exports.downloadOfferLetter = async (req, res) => {
     console.log(`Download request for offer letter: ${req.params.id}`);
     try {
-        const offerLetterId = normalizeOfferLetterLookupId(req.params.id);
-        let offerLetter;
-
-        if (mongoose.Types.ObjectId.isValid(offerLetterId)) {
-            offerLetter = await OfferLetter.findById(offerLetterId);
-        } else if (offerLetterId.length >= 4) {
-            offerLetter = await OfferLetter.findOne({
-                $expr: {
-                    $regexMatch: {
-                        input: { $toString: "$_id" },
-                        regex: offerLetterId + "$",
-                        options: "i"
-                    }
-                }
-            });
-        }
+        const offerLetter = await findOfferLetterByIdentifier(req.params.id, null);
 
         if (!offerLetter) {
-            console.log(`Offer letter not found: ${offerLetterId}`);
+            console.log(`Offer letter not found: ${req.params.id}`);
             return res.status(404).json({ message: "Offer letter not found" });
         }
+
+        const offerLetterId = offerLetter._id;
 
         console.log(`Generating PDF in memory for: ${offerLetter.candidateName}`);
 
         const filename = `offer-letter-${offerLetterId}.pdf`;
 
-        // Generate PDF in memory
+        // Generate PDF in memory (Cache disabled for iteration)
+        console.log(`Generating fresh PDF: ${offerLetterId}`);
         const pdfBuffer = await generateOfferLetterPDFInMemory(offerLetter);
 
         // Send file directly from memory
@@ -506,7 +520,7 @@ exports.downloadOfferLetter = async (req, res) => {
         } catch (e) { }
 
         res.end(pdfBuffer);
-        console.log(`PDF sent directly from memory: ${filename}`);
+        console.log(`PDF sent: ${filename}`);
 
     } catch (error) {
         console.error("Error:", error.message);
@@ -532,7 +546,9 @@ exports.sendOfferLetterEmail = async (req, res) => {
 
         // Find application to get its slug for the URL
         const Application = require("../models/application");
-        const application = await Application.findById(offerLetter.applicationId).populate('jobId');
+        const application = offerLetter.applicationId
+            ? await Application.findById(offerLetter.applicationId).populate('jobId')
+            : null;
 
         const filename = `offer-letter-${offerLetterId}.pdf`;
 
@@ -540,9 +556,19 @@ exports.sendOfferLetterEmail = async (req, res) => {
         const pdfBuffer = await generateOfferLetterPDFInMemory(offerLetter);
 
         const emailRecipient = recipientEmail || offerLetter.email;
-        const jobSlug = application.jobId?.slug || 'job';
-        const applicationSlug = application.slug || application._id;
-        const acceptanceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/offer/accept/${jobSlug}/${applicationSlug}`;
+
+        // If there's an application, use the application-based acceptance URL
+        // Otherwise, use a direct offer letter acceptance URL
+        let acceptanceUrl = '';
+        if (application) {
+            const jobSlug = application.jobId?.slug || 'job';
+            const applicationSlug = application.slug || application._id;
+            acceptanceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/offer/accept/${jobSlug}/${applicationSlug}`;
+        } else {
+            // For manual offers, we'll use a direct acceptance link with the offer ID
+            // We need to ensure the frontend supports this
+            acceptanceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/offer/accept/manual/${offerLetterId}`;
+        }
 
         // Determine if this is an internship
         const isInternship = (offerLetter.offerType && offerLetter.offerType.toLowerCase() === 'internship') ||
@@ -692,7 +718,7 @@ function calculateDurationText(startDate, endDate) {
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         return null;
     }
 
@@ -702,10 +728,24 @@ function calculateDurationText(startDate, endDate) {
     }
 
     const totalDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-    const months = Math.floor(totalDays / 30);
-    const days = totalDays % 30;
+    
+    // Very short durations
+    if (totalDays < 7) {
+        return `${totalDays} day${totalDays > 1 ? 's' : ''}`;
+    }
+    
+    // Weeks if less than a month
+    if (totalDays < 28) {
+        const weeks = Math.floor(totalDays / 7);
+        const remDays = totalDays % 7;
+        if (remDays === 0) return `${weeks} week${weeks > 1 ? 's' : ''}`;
+        return `${weeks} week${weeks > 1 ? 's' : ''} ${remDays} day${remDays > 1 ? 's' : ''}`;
+    }
 
-    if (months > 0 && days > 0) {
+    const months = Math.floor(totalDays / 30.44); // Use average month length
+    const days = Math.round(totalDays % 30.44);
+
+    if (months > 0 && days >= 5) {
         return `${months} month${months > 1 ? 's' : ''} ${days} day${days > 1 ? 's' : ''}`;
     }
 
@@ -870,11 +910,16 @@ async function generateOfferLetterPDFInMemory(offerLetter) {
 
     const isExtended = !!(offerLetter.extensionHistory && offerLetter.extensionHistory.length > 0);
 
-    const salaryLabel = isInternship ? 'Stipend' : 'Annual CTC';
+    let salaryLabel = isInternship ? 'Stipend' : 'Annual CTC';
+    if (isInternship && offerLetter.payoutFrequency) {
+        salaryLabel += ` (${offerLetter.payoutFrequency})`;
+    }
+
     const salaryValue = (offerLetter.salary === 0 || offerLetter.salary === '0')
         ? 'Unpaid'
         : `Rs.${formatCurrencyValue(offerLetter.salary)}`;
-    const payoutSuffix = (isInternship && offerLetter.payoutFrequency) ? ` (${offerLetter.payoutFrequency})` : '';
+    
+    const payoutSuffix = '';
 
     const offerTypeLabel = isInternship ? 'Internship' : (offerLetter.offerType || 'Job');
 
@@ -907,29 +952,24 @@ async function generateOfferLetterPDFInMemory(offerLetter) {
     doc.rect(0, headerY, W, headerH).fill(C.white);
     doc.rect(0, headerY + headerH - 0.5, W, 0.5).fill(C.border);
 
-    // ── LOGO (from assets, 140×40 pt reserved zone) ─────────
+    // ── LOGO (from memory cache, 140×40 pt reserved zone) ─────────
     const logoX = PAD;
     const logoY = headerY + (headerH - 40) / 2;
     const logoW = 140;
     const logoH = 40;
 
-    try {
-        const logoPath = path.join(__dirname, '..', 'assets', 'logo_dryukr.png');
-        if (fs.existsSync(logoPath)) {
-            doc.image(logoPath, logoX, logoY, { fit: [logoW, logoH], align: 'left', valign: 'center' });
-            // Add FMPG text after logo
-            doc.font('Helvetica-Bold').fontSize(22).fillColor(C.dark);
-            doc.text('FMPG', logoX + 50, logoY + 11, { lineBreak: false });
-        } else {
-            // Fallback: lime square + FMPG text
-            fillRR(doc, logoX, logoY + 6, 28, 28, 6, C.lime);
-            doc.font('Helvetica-Bold').fontSize(14).fillColor(C.dark);
-            doc.text('F', logoX + 8, logoY + 14, { lineBreak: false });
-            doc.font('Helvetica-Bold').fontSize(18).fillColor(C.dark);
-            doc.text('FMPG', logoX + 36, logoY + 11, { lineBreak: false });
-        }
-    } catch (err) {
-        console.warn('Logo load failed:', err.message);
+    if (cachedLogo) {
+        doc.image(cachedLogo, logoX, logoY, { fit: [logoW, logoH], align: 'left', valign: 'center' });
+        // Add FMPG text after logo
+        doc.font('Helvetica-Bold').fontSize(22).fillColor(C.dark);
+        doc.text('FMPG', logoX + 50, logoY + 11, { lineBreak: false });
+    } else {
+        // Fallback: lime square + FMPG text
+        fillRR(doc, logoX, logoY + 6, 28, 28, 6, C.lime);
+        doc.font('Helvetica-Bold').fontSize(14).fillColor(C.dark);
+        doc.text('F', logoX + 8, logoY + 14, { lineBreak: false });
+        doc.font('Helvetica-Bold').fontSize(18).fillColor(C.dark);
+        doc.text('FMPG', logoX + 36, logoY + 11, { lineBreak: false });
     }
 
     // Reference — top right
@@ -1126,7 +1166,7 @@ async function generateOfferLetterPDFInMemory(offerLetter) {
     doc.rect(0, stripY, W, 22).fill(C.bg);
     doc.rect(0, stripY, W, 0.5).fill(C.border);
 
-    const validText = `Digitally issued · Valid without physical signature · Valid until ${fmt(offerLetter.validUntil)}`;
+    const validText = `Digitally issued · Valid without physical signature · Offer Acceptance Deadline: ${fmt(offerLetter.validUntil)}`;
     doc.font('Helvetica').fontSize(7.5).fillColor(C.subtle);
     doc.text(validText, PAD, stripY + 7, { lineBreak: false });
     doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C.limeDark);
@@ -1163,7 +1203,9 @@ exports.bulkIssueOfferLetters = async (req, res) => {
             additionalNotes,
             offerType,
             payoutFrequency,
-            sendEmail = false
+            sendEmail = false,
+            endDate: commonEndDate,
+            duration: commonDuration
         } = req.body;
 
         if (!joiningLocation || !validUntil) {
@@ -1224,8 +1266,12 @@ exports.bulkIssueOfferLetters = async (req, res) => {
                 const resolvedOfferType = cleanRow.offerType || offerType || 'Job';
                 const resolvedPayoutFrequency = cleanRow.payoutFrequency || payoutFrequency || '';
 
-                const resolvedDuration = calculateDurationText(parsedStartDate, resolvedValidUntil)
-                    || 'Until project completion or 3 months (whichever is longer)';
+                const resolvedEndDate = cleanRow.endDate ? new Date(cleanRow.endDate) : (commonEndDate ? new Date(commonEndDate) : null);
+                const resolvedDuration = (typeof cleanRow.duration === 'string' && cleanRow.duration.trim())
+                    ? cleanRow.duration.trim()
+                    : (commonDuration && commonDuration.trim()
+                        ? commonDuration.trim()
+                        : (calculateDurationText(parsedStartDate, resolvedEndDate || resolvedValidUntil) || 'Until project completion or 3 months (whichever is longer)'));
 
                 const offerLetter = new OfferLetter({
                     userId: issuerId,
@@ -1235,6 +1281,7 @@ exports.bulkIssueOfferLetters = async (req, res) => {
                     department,
                     salary,
                     startDate: parsedStartDate,
+                    endDate: resolvedEndDate,
                     duration: resolvedDuration,
                     joiningLocation: resolvedJoiningLocation,
                     workType: resolvedWorkType,
@@ -1246,6 +1293,9 @@ exports.bulkIssueOfferLetters = async (req, res) => {
                     offerType: resolvedOfferType,
                     payoutFrequency: resolvedPayoutFrequency
                 });
+
+                // Set shortId for efficient lookup (last 6 chars of ObjectId)
+                offerLetter.shortId = offerLetter._id.toString().slice(-6).toUpperCase();
 
                 await offerLetter.save();
                 successCount++;

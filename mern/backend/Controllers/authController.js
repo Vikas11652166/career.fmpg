@@ -99,7 +99,7 @@ exports.login = async (req, res) => {
         }
 
         console.log("Login: finding user");
-        const user = await User.findOne({ email });
+        const user = await User.findOne({ email }).select("+password");
         if (!user){
             console.log(`Login: ${email} not found`);
             return res.status(400).json({ message: "User not found" });

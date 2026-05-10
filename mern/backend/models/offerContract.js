@@ -150,7 +150,7 @@ const contractSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
-contractSchema.index({ offerLetterId: 1 });
+contractSchema.index({ offerLetterId: 1 }, { unique: true });
 contractSchema.index({ email: 1 });
 contractSchema.index({ status: 1 });
 contractSchema.index({ createdAt: -1 });

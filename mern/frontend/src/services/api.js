@@ -120,8 +120,14 @@ export const authService = {
     localStorage.removeItem('user');
   },
   getCurrentUser: () => {
-    const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
+    try {
+      const user = localStorage.getItem('user');
+      return user ? JSON.parse(user) : null;
+    } catch (error) {
+      console.error('API: Error parsing user from localStorage:', error);
+      localStorage.removeItem('user'); // Clear potentially corrupted data
+      return null;
+    }
   },
   isTokenExpired: () => {
     const token = localStorage.getItem('token');
@@ -379,26 +385,19 @@ export const certificateService = {
   
   // Download certificate as a blob
   downloadCertificate: (id) => {
-    // Using direct fetch to avoid issues with axios interceptors
-    return trackedFetch(buildApiUrl(`/api/certification/download/${id}`), {
-      method: 'GET',
+    return api.get(`/api/certification/download/${id}`, {
+      responseType: 'blob',
       headers: {
-        'Accept': 'application/pdf',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Accept': 'application/pdf'
       }
     }).then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      return response.blob().then(blobData => {
-        return {
-          data: blobData,
-          status: response.status,
-          headers: {
-            'content-type': response.headers.get('content-type')
-          }
-        };
-      });
+      return {
+        data: response.data,
+        status: response.status,
+        headers: {
+          'content-type': response.headers['content-type']
+        }
+      };
     });
   },
   
@@ -425,40 +424,28 @@ export const offerLetterService = {
   
   // Download offer letter as a blob
   downloadOfferLetter: (id) => {
-    return trackedFetch(buildApiUrl(`/api/certification/offer-letters/${id}/download`), {
-      method: 'GET',
+    return api.get(`/api/certification/offer-letters/${id}/download`, {
+      responseType: 'blob',
       headers: {
-        'Accept': 'application/pdf',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Accept': 'application/pdf'
       }
     }).then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      return response.blob().then(blobData => {
-        return {
-          data: blobData,
-          status: response.status,
-          headers: {
-            'content-type': response.headers.get('content-type')
-          }
-        };
-      });
+      return {
+        data: response.data,
+        status: response.status,
+        headers: {
+          'content-type': response.headers['content-type']
+        }
+      };
     });
   },
 
   // Bulk offer letter methods
   bulkIssueOfferLetters: (formData) => apiFileUpload.post('/api/certification/bulk-issue-offer', formData),
   downloadOfferSampleCSV: () => {
-    return trackedFetch(buildApiUrl('/api/certification/bulk-sample-csv'), {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    }).then(response => {
-      if (!response.ok) throw new Error('Download failed');
-      return response.blob();
-    });
+    return api.get('/api/certification/bulk-sample-csv', {
+      responseType: 'blob'
+    }).then(response => response.data);
   }
 };
 
@@ -466,49 +453,23 @@ export const offerLetterService = {
 export const contractService = {
   // Public endpoints for offer acceptance (no auth required)
   getOfferForAcceptance: (token) => {
-    return trackedFetch(`${API_URL}/api/contracts/offer/accept/${token}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    }).then(response => response.json());
+    return api.get(`/api/contracts/offer/accept/${token}`).then(response => response.data);
   },
   
   acceptOffer: (token, data) => {
-    return trackedFetch(`${API_URL}/api/contracts/offer/accept/${token}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(data)
-    }).then(response => response.json());
+    return api.post(`/api/contracts/offer/accept/${token}`, data).then(response => response.data);
   },
   
   rejectOffer: (token, data) => {
-    return trackedFetch(`${API_URL}/api/contracts/offer/reject/${token}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(data)
-    }).then(response => response.json());
+    return api.post(`/api/contracts/offer/reject/${token}`, data).then(response => response.data);
   },
   
   submitContract: (token, contractData) => {
-    return trackedFetch(`${API_URL}/api/contracts/offer/${token}/contract`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(contractData)
-    }).then(response => response.json());
+    return api.post(`/api/contracts/offer/${token}/contract`, contractData).then(response => response.data);
   },
   
   uploadDocument: (formData) => {
-    return trackedFetch(`${API_URL}/api/contracts/upload-document`, {
-      method: 'POST',
-      body: formData
-    }).then(response => response.json());
+    return apiFileUpload.post('/api/contracts/upload-document', formData).then(response => response.data);
   },
   
   uploadContractDocument: (contractId, file, documentType) => {
@@ -516,10 +477,7 @@ export const contractService = {
     formData.append('document', file);
     formData.append('documentType', documentType);
     
-    return trackedFetch(`${API_URL}/api/contracts/${contractId}/upload`, {
-      method: 'POST',
-      body: formData
-    }).then(response => response.json());
+    return apiFileUpload.post(`/api/contracts/${contractId}/upload`, formData).then(response => response.data);
   },
   
   // Admin endpoints
@@ -535,25 +493,19 @@ export const contractService = {
   updateContractStatus: (contractId, data) => api.put(`/api/contracts/${contractId}/status`, data),
   
   generateContractPDF: (contractId) => {
-    return trackedFetch(`${API_URL}/api/contracts/${contractId}/pdf`, {
-      method: 'GET',
+    return api.get(`/api/contracts/${contractId}/pdf`, {
+      responseType: 'blob',
       headers: {
-        'Accept': 'application/pdf',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Accept': 'application/pdf'
       }
     }).then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      return response.blob().then(blobData => {
-        return {
-          data: blobData,
-          status: response.status,
-          headers: {
-            'content-type': response.headers.get('content-type')
-          }
-        };
-      });
+      return {
+        data: response.data,
+        status: response.status,
+        headers: {
+          'content-type': response.headers['content-type']
+        }
+      };
     });
   }
 };
@@ -714,29 +666,8 @@ export const notificationService = {
 
 export const systemService = {
   checkHealth: () => {
-    const url = buildApiUrl('/api/health');
-    console.log('systemService: Checking health at', url);
-    return fetch(url, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json'
-      }
-    }).then(async (response) => {
-      console.log('systemService: Health check response status:', response.status);
-      if (!response.ok) {
-        throw new Error(`Health check failed with status ${response.status}`);
-      }
-      return response.json();
-    }).catch(error => {
-      console.error('systemService: Health check fetch error:', error.message);
-      throw error;
-    });
+    return api.get('/api/health').then(response => response.data);
   }
-};
-
-export const trackedFetch = (input, init, options = {}) => {
-  console.log('trackedFetch: Called for', input);
-  return fetch(input, init);
 };
 
 export default api;

@@ -880,6 +880,12 @@ const ApplicationDetail = () => {
                           <span className="text-gray-400">Start Date:</span>
                           <span className="text-white ml-2">{new Date(offerLetter.startDate).toLocaleDateString()}</span>
                         </div>
+                        {offerLetter.duration && (
+                          <div>
+                            <span className="text-gray-400">Duration:</span>
+                            <span className="text-white ml-2">{offerLetter.duration}</span>
+                          </div>
+                        )}
                         <div>
                           <span className="text-gray-400">Valid Until:</span>
                           <span className="text-white ml-2">{new Date(offerLetter.validUntil).toLocaleDateString()}</span>

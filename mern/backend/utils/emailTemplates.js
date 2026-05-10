@@ -148,7 +148,7 @@ exports.getOfferLetterTemplate = (name, jobTitle, link = 'https://careers.omsoft
 
   ${validUntil ? `
   <div style="background-color: #fff7ed; border-left: 4px solid #f97316; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
-    <p style="margin: 0; color: #9a3412;"><strong>⏰ Important:</strong> This offer is valid until <strong>${new Date(validUntil).toLocaleDateString('en-GB')}</strong></p>
+    <p style="margin: 0; color: #9a3412;"><strong>⏰ Important:</strong> The deadline to accept this offer is <strong>${new Date(validUntil).toLocaleDateString('en-GB')}</strong></p>
   </div>
   ` : ''}
 
@@ -181,7 +181,7 @@ exports.getExtendedOfferTemplate = (name, jobTitle, link, validUntil, hrContact)
   </div>
 
   <div style="background-color: #fff7ed; border-left: 4px solid #f97316; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
-    <p style="margin: 0; color: #9a3412;"><strong>⏰ New Deadline:</strong> The offer is now valid until <strong>${new Date(validUntil).toLocaleDateString('en-GB')}</strong></p>
+    <p style="margin: 0; color: #9a3412;"><strong>⏰ New Deadline:</strong> The updated deadline to accept this offer is <strong>${new Date(validUntil).toLocaleDateString('en-GB')}</strong></p>
   </div>
 
   <p>You can review and accept the updated offer here:</p>

@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const logger = require("../utils/logger");
 const path = require("path");
 const compression = require("compression");
 require("dotenv").config();
@@ -18,14 +19,54 @@ const hrRoutes = require("../Routes/hrRoutes");
 const auditRoutes = require("../Routes/auditRoutes");
 const sitemapRoutes = require("../Routes/sitemapRoutes");
 
-console.log("Starting API server...");
+logger.info("Starting API server...");
 
 validateConfig();
 
+// --- PRODUCTION READINESS: MANUAL SECURITY & RELIABILITY ---
 
+// 1. Basic Rate Limiter (Manual Implementation)
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+const MAX_REQUESTS = 100; // 100 requests per window
+
+const basicRateLimiter = (req, res, next) => {
+  if (process.env.NODE_ENV === 'development') return next();
+  
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const now = Date.now();
+  
+  if (!rateLimitMap.has(ip)) {
+    rateLimitMap.set(ip, { count: 1, firstRequest: now });
+    return next();
+  }
+  
+  const userData = rateLimitMap.get(ip);
+  if (now - userData.firstRequest > RATE_LIMIT_WINDOW) {
+    rateLimitMap.set(ip, { count: 1, firstRequest: now });
+    return next();
+  }
+  
+  userData.count += 1;
+  if (userData.count > MAX_REQUESTS) {
+    return res.status(429).json({ message: "Too many requests, please try again later." });
+  }
+  
+  next();
+};
+
+// 2. Manual Security Headers (Helmet alternative)
+const securityHeaders = (req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  res.setHeader("Content-Security-Policy", "default-src 'self'");
+  next();
+};
 const app = express();
 app.use(compression());
-console.log("Init Express app");
+logger.info("Init Express app");
 const isVercel = process.env.VERCEL === "1";
 let dbConnectionPromise = null;
 
@@ -40,38 +81,53 @@ const ensureDbConnection = async () => {
   await dbConnectionPromise;
 };
 
-// Configure CORS to allow all origins
+// Configure CORS to allow specific origins in production
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://career-fmpg.vercel.app', // Update with your actual domain
+  'https://fmpg.vercel.app'
+];
+
 const corsOptions = {
-  origin: true,  // Allow all origins
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || isVercel) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   optionsSuccessStatus: 200
 };
 
+app.use(securityHeaders);
+app.use(basicRateLimiter);
+
 app.use(cors(corsOptions));
-console.log("CORS enabled with options");
+logger.info("CORS enabled with options");
 app.use(express.json());
-console.log("JSON parser enabled");
+logger.info("JSON parser enabled");
 
 app.use(async (req, res, next) => {
   try {
     await ensureDbConnection();
     next();
   } catch (error) {
-    console.error("Database connection failed:", error.message);
+    logger.error("Database connection failed", error);
     res.status(500).json({ message: "Database connection failed" });
   }
 });
 
-// Note: This static route for uploads is not needed in serverless deployment
-// as all files are now handled in memory and streamed directly
-// app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-console.log("Static serving: /uploads (disabled for serverless compatibility)");
+logger.info("Static serving: /uploads (disabled for serverless compatibility)");
 
 
 app.get("/", (req, res) => {
-  console.log("Root accessed");
+  logger.info("Root accessed");
   res.send("Welcome to the FMPG API!");
 });
 app.get("/api", (req, res) => {
@@ -101,16 +157,27 @@ app.use("/api/audit", auditRoutes);
 // Sitemap Route (accessible at /api/sitemap.xml)
 app.use("/api", sitemapRoutes);
 
+// --- GLOBAL ERROR HANDLER ---
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+  logger.error(`${req.method} ${req.url}`, err);
+  
+  res.status(statusCode).json({
+    status: 'error',
+    message: statusCode === 500 ? 'Internal Server Error' : err.message,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
 
 const PORT = authConfig.port;
 
 if (!isVercel) {
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`✅ Server running: http://localhost:${PORT}`);
+    logger.info(`✅ Server running: http://localhost:${PORT}`);
   });
 
   ensureDbConnection().catch((err) => {
-    console.error("Background database connection failed:", err);
+    logger.error("Background database connection failed", err);
   });
 }
 

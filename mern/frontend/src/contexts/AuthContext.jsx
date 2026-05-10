@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, useContext } from 'react';
-import { authService, trackedFetch } from '../services/api';
+import { authService } from '../services/api';
+import { trackedFetch } from '../utils/loadingTracker';
 import { getTokenCheckInterval } from '../config/authConfig';
 import { setCache, getCache } from '../utils/cache';
 import Loader from '../components/common/Loader';
